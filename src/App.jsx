@@ -2541,7 +2541,7 @@ const ConsolidatedDashboardView = memo(({ data, assumptions, isPresenting, holdC
           <KPICard title="Blended Equity NPV" value={formatCurrency(data.metrics.npv)} icon={<TrendingUp size={18} />} color="emerald" subtitle={`@${String(assumptions.holdCoDiscountRate)}% Disc Rate`} />
           <KPICard title="Blended Cash Multiple" value={`${formatNumber(data.metrics.moic, 2)}x`} icon={<BarChart3 size={18} />} color="blue" subtitle="Consolidated MOIC" />
           <KPICard title="Blended Equity IRR" value={`${formatNumber((data.metrics.irr || 0) * 100, 2)}%`} icon={<Activity size={18} />} color="emerald" subtitle="Compounded Return" />
-          <KPICard title="Blended Payback" value={`${formatNumber(data.metrics.payback, 1)} Yrs`} icon={<Clock size={18} />} color="indigo" subtitle="From Year 1" />
+          <KPICard title="Blended Payback" value={`${formatNumber(data.metrics.payback, 2)} Yrs`} icon={<Clock size={18} />} color="indigo" subtitle="From Year 1" />
           <KPICard title="Project Avg Net Margin" value={`${formatNumber(data.totals.lookThroughMargin, 1)}%`} icon={<PieChartIcon size={18} />} color="blue" subtitle="Across 12-Year Lifecycle" />
           <KPICard title="Consolidated DSCR" value={`${formatNumber(data.metrics.avgConsolidatedDscr, 2)}x`} icon={<ShieldCheck size={18} />} color="amber" subtitle="HoldCo Debt Coverage" />
        </div>
@@ -2936,10 +2936,10 @@ export default function App() {
   const [holdCoScenario, setHoldCoScenario] = useState('manual');
 
   const projConfig = useMemo(() => {
-      if (holdCoScenario === 'manual') return { exitYear: opCoAssumptions.includeTerminalValue ? 10 : null, projYears: 10 };
+      if (holdCoScenario === 'manual') return { exitYear: opCoAssumptions.includeTerminalValue ? 10 : -1, projYears: 10 };
       if (holdCoScenario === 'none') {
           const y = Math.max(15, (propCoAssumptions.loanTenor || 15) + 2);
-          return { exitYear: null, projYears: Math.min(y, 30) };
+          return { exitYear: -1, projYears: Math.min(y, 30) };
       }
       if (holdCoScenario === 'yr10') return { exitYear: 10, projYears: 10 };
       if (holdCoScenario === 'debt_free') {
@@ -2947,7 +2947,7 @@ export default function App() {
           return { exitYear: Math.min(y, 30), projYears: Math.min(y, 30) };
       }
       if (holdCoScenario === 'breakeven') {
-          const p1 = { exitYear: null, projYears: 30 };
+          const p1 = { exitYear: -1, projYears: 30 }; // -1 forces the engine to ignore individual settings and test pure operations
           const op1 = runOpCoEngine(opCoAssumptions, p1);
           const pr1 = runPropCoEngine(propCoAssumptions, op1, p1);
           const cons1 = runConsolidatedEngine(op1, pr1, opCoAssumptions);
