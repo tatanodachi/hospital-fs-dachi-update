@@ -12,7 +12,7 @@ import {
   AlertTriangle, Grid, Clock, Lock, Unlock, Info, MapPin, Building,
   Cloud, CloudOff, ChevronDown, GripHorizontal, Maximize, Minimize,
   BookOpen, Target, Search, FolderTree, BarChartHorizontal, Layers, Microscope,
-  Bed, Timer, Network, Plane, Dna, Bone, Baby, Eye, Check, ArrowRight
+  B_$0ed, Timer, Network, Plane, Dna, Bone, Baby, Eye, Check, ArrowRight
 } from 'lucide-react';
 
 const CHART_MARGINS_BAR = { top: 20, right: 0, left: 0, bottom: 0 };
@@ -165,7 +165,16 @@ const callGemini = async (prompt, systemInstruction) => {
 // ==========================================
 // 2. FINANCIAL ENGINES
 // ==========================================
-const runOpCoEngine = (assumptions) => {
+const runOpCoEngine = (assumptions, config) => {
+    const requestedYears = config?.projYears || 10;
+    const projYears = Math.min(requestedYears, 30);
+    
+    let exitYear = null;
+    if (config?.exitYear !== undefined && config.exitYear !== null) {
+        exitYear = Math.min(config.exitYear, 30);
+    } else if (assumptions.includeTerminalValue) {
+        exitYear = 10;
+    }
     const totalEquity = assumptions.partnerAEquity + assumptions.partnerBEquity;
     let annualData = [], projectCfs = [], partnerACfs = [], partnerBCfs = []; 
     let cumulativeNetIncome = 0, partnerA_CumCF = 0, partnerB_CumCF = 0, cumulativeRetainedEarnings = 0;
@@ -189,7 +198,7 @@ const runOpCoEngine = (assumptions) => {
       partnerACfs.push(pA_Outlay); partnerBCfs.push(pB_Outlay); projectCfs.push(pA_Outlay + pB_Outlay);
     });
 
-    for (let i = 1; i <= 10; i++) {
+    for (let i = 1; i <= projYears; i++) {
       let bor = Math.min(assumptions.borMax / 100, (assumptions.borStart / 100) + (i - 1) * (assumptions.borIncrement / 100));
       let bedDays = assumptions.beds * 365 * bor;
       let ipCases = bedDays / assumptions.alos;
@@ -238,7 +247,7 @@ const runOpCoEngine = (assumptions) => {
       cumulativeRetainedEarnings += retainedThisYear;
 
       let opCoExit = 0, pA_Exit = 0, pB_Exit = 0, ev = 0;
-      if (i === 10 && assumptions.includeTerminalValue) {
+      if (exitYear !== null && i === exitYear) {
           ev = ebitda * (assumptions.exitMultiple || 30);
           if (assumptions.sellingCosts) {
               ev = ev * (1 - assumptions.sellingCosts / 100);
@@ -327,7 +336,16 @@ const runOpCoEngine = (assumptions) => {
     };
 };
 
-const runPropCoEngine = (assumptions, opCoModelData) => {
+const runPropCoEngine = (assumptions, opCoModelData, config) => {
+    const requestedYears = config?.projYears || 10;
+    const projYears = Math.min(requestedYears, 30);
+    
+    let exitYear = null;
+    if (config?.exitYear !== undefined && config.exitYear !== null) {
+        exitYear = Math.min(config.exitYear, 30);
+    } else if (assumptions.includeTerminalValue) {
+        exitYear = 10;
+    }
     let annualData = [], equityCfs = [], equityCfsExLand = [], unleveredCfs = [], operatingCfs = [];
     const landCost = (assumptions.includeLand ?? true) ? (assumptions.landArea * assumptions.landPrice) / 1000 : 0;
     const buildCost = (assumptions.buildArea * assumptions.buildCost) / 1000;
@@ -402,7 +420,7 @@ const runPropCoEngine = (assumptions, opCoModelData) => {
     const opCoRents = opCoModelData.annualData.filter(d => d.isOperating).map(d => d.rent);
     let bvB = buildBasis, bvM = medEqBasis, bvI = infraBasis, bvF = ffeBasis;
 
-    for(let i=1; i<=10; i++) {
+    for(let i=1; i<=projYears; i++) {
         let revenue = assumptions.linkToOpCo ? (opCoRents[i - 1] || 0) : assumptions.manualBaseRent * Math.pow(1 + (assumptions.manualRentEscalation/100), i-1);
         const maint = buildCost * (assumptions.maintRate / 100), taxOp = totalCapex * (assumptions.propTaxRate / 100);
         const overhead = (assumptions.opOverheadMonthly * 12) * Math.pow(1 + (assumptions.opOverheadInc / 100), i - 1);
@@ -447,7 +465,7 @@ const runPropCoEngine = (assumptions, opCoModelData) => {
         const netIncome = ebt - tax;
 
         let exit = 0, exitExLand = 0, exitUnlev = 0;
-        if (i === 10 && assumptions.includeTerminalValue) {
+        if (exitYear !== null && i === exitYear) {
             let tv = assumptions.exitMethod === 'multiple' ? ebitda * assumptions.exitMultiple : ebitda / (assumptions.exitCapRate / 100);
             if (tv > 0) {
                 const cost = tv * (assumptions.sellingCosts / 100);
@@ -2497,9 +2515,24 @@ const PropCoCascadeView = memo(({ data, onExport }) => (
   </div>
 ));
 
-const ConsolidatedDashboardView = memo(({ data, assumptions, isPresenting }) => (
+const ConsolidatedDashboardView = memo(({ data, assumptions, isPresenting, holdCoScenario, setHoldCoScenario }) => (
   <div className={isPresenting ? "grid grid-cols-1 lg:grid-cols-12 gap-6 items-start animate-in fade-in" : "space-y-6 animate-in fade-in"}>
     <div className={`space-y-6 ${isPresenting ? "lg:col-span-4" : ""}`}>
+       
+       <div className="bg-white p-4 rounded-2xl shadow-sm border border-[#D8D8D8] flex flex-col gap-3">
+          <div>
+              <h3 className="text-sm font-bold text-[#1E2F31] flex items-center gap-2"><Target size={16} className="text-[#1C6048]"/> Master Exit Strategy</h3>
+              <p className="text-[9px] text-[#4C4A4B] mt-1 font-medium leading-relaxed">Override individual entity settings to simulate master portfolio exits and visualize long-term holding yields.</p>
+          </div>
+          <div className="flex flex-wrap gap-1.5 mt-1">
+              <button onClick={() => setHoldCoScenario('manual')} className={`flex-1 min-w-[100px] px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${holdCoScenario === 'manual' ? 'bg-white shadow-sm border border-[#D8D8D8] text-[#1E2F31]' : 'bg-[#EFEBE7] text-[#4C4A4B] hover:text-[#1E2F31]'}`}>Manual (Settings)</button>
+              <button onClick={() => setHoldCoScenario('yr10')} className={`flex-1 min-w-[100px] px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${holdCoScenario === 'yr10' ? 'bg-[#1E2F31] shadow-sm border border-[#1E2F31] text-white' : 'bg-[#EFEBE7] text-[#4C4A4B] hover:text-[#1E2F31]'}`}>Exit in Yr 10</button>
+              <button onClick={() => setHoldCoScenario('breakeven')} className={`flex-1 min-w-[100px] px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${holdCoScenario === 'breakeven' ? 'bg-[#1C6048] shadow-sm border border-[#1C6048] text-white' : 'bg-[#EFEBE7] text-[#4C4A4B] hover:text-[#1E2F31]'}`}>Exit at Breakeven</button>
+              <button onClick={() => setHoldCoScenario('debt_free')} className={`flex-1 min-w-[100px] px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${holdCoScenario === 'debt_free' ? 'bg-[#9B8B70] shadow-sm border border-[#9B8B70] text-white' : 'bg-[#EFEBE7] text-[#4C4A4B] hover:text-[#1E2F31]'}`}>Exit Post-Debt</button>
+              <button onClick={() => setHoldCoScenario('none')} className={`flex-1 min-w-[100px] px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${holdCoScenario === 'none' ? 'bg-white shadow-sm border border-[#1C6048] text-[#1C6048]' : 'bg-[#EFEBE7] text-[#4C4A4B] hover:text-[#1E2F31]'}`}>No Exit (Yield)</button>
+          </div>
+       </div>
+
        <div className={`grid grid-cols-2 gap-4`}>
           <KPICard title="Blended Equity NPV" value={formatCurrency(data.metrics.npv)} icon={<TrendingUp size={18} />} color="emerald" subtitle={`@${String(assumptions.holdCoDiscountRate)}% Disc Rate`} />
           <KPICard title="Blended Cash Multiple" value={`${formatNumber(data.metrics.moic, 2)}x`} icon={<BarChart3 size={18} />} color="blue" subtitle="Consolidated MOIC" />
@@ -2896,8 +2929,35 @@ export default function App() {
   const [opCoAssumptions, setOpCoAssumptions] = useState(DEFAULT_OPCO_ASSUMPTIONS);
   const [propCoAssumptions, setPropCoAssumptions] = useState(DEFAULT_PROPCO_ASSUMPTIONS);
 
-  const opCoModelData = useMemo(() => runOpCoEngine(opCoAssumptions), [opCoAssumptions]);
-  const propCoModelData = useMemo(() => runPropCoEngine(propCoAssumptions, opCoModelData), [propCoAssumptions, opCoModelData]);
+  const [holdCoScenario, setHoldCoScenario] = useState('manual');
+
+  const projConfig = useMemo(() => {
+      if (holdCoScenario === 'manual') return { exitYear: opCoAssumptions.includeTerminalValue ? 10 : null, projYears: 10 };
+      if (holdCoScenario === 'none') {
+          const y = Math.max(15, (propCoAssumptions.loanTenor || 15) + 2);
+          return { exitYear: null, projYears: Math.min(y, 30) };
+      }
+      if (holdCoScenario === 'yr10') return { exitYear: 10, projYears: 10 };
+      if (holdCoScenario === 'debt_free') {
+          const y = Math.max(1, propCoAssumptions.loanTenor || 15);
+          return { exitYear: Math.min(y, 30), projYears: Math.min(y, 30) };
+      }
+      if (holdCoScenario === 'breakeven') {
+          const p1 = { exitYear: null, projYears: 30 };
+          const op1 = runOpCoEngine(opCoAssumptions, p1);
+          const pr1 = runPropCoEngine(propCoAssumptions, op1, p1);
+          const cons1 = runConsolidatedEngine(op1, pr1, opCoAssumptions);
+          let beOpYear = 30;
+          for (let j = 0; j < cons1.operatingData.length; j++) {
+              if (cons1.operatingData[j].cumCf >= 0) { beOpYear = j + 1; break; }
+          }
+          return { exitYear: Math.min(beOpYear, 30), projYears: Math.min(beOpYear, 30) };
+      }
+      return { exitYear: 10, projYears: 10 };
+  }, [holdCoScenario, opCoAssumptions, propCoAssumptions]);
+
+  const opCoModelData = useMemo(() => runOpCoEngine(opCoAssumptions, projConfig), [opCoAssumptions, projConfig]);
+  const propCoModelData = useMemo(() => runPropCoEngine(propCoAssumptions, opCoModelData, projConfig), [propCoAssumptions, opCoModelData, projConfig]);
   const consolidatedModelData = useMemo(() => runConsolidatedEngine(opCoModelData, propCoModelData, opCoAssumptions), [opCoModelData, propCoModelData, opCoAssumptions]);
 
   // Compute Presentation Wrapper
@@ -3186,7 +3246,7 @@ export default function App() {
 
         {activeTab !== 'overview' && activeTab !== 'study' && activeTab !== 'collab' && activeTab !== 'ai' && activeCompany === 'consolidated' && activeGroup === 'financials' && (
             <div className="animate-in fade-in duration-500">
-                {activeTab === 'dashboard' && <ConsolidatedDashboardView data={consolidatedModelData} assumptions={opCoAssumptions} isPresenting={isPresenting} />}
+                {activeTab === 'dashboard' && <ConsolidatedDashboardView data={consolidatedModelData} assumptions={opCoAssumptions} isPresenting={isPresenting} holdCoScenario={holdCoScenario} setHoldCoScenario={setHoldCoScenario} />}
                 {activeTab === 'comprehensive' && <ConsolidatedCascadeView data={consolidatedModelData} />}
             </div>
         )}
