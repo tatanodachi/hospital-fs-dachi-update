@@ -12,11 +12,11 @@ import {
   AlertTriangle, Grid, Clock, Lock, Unlock, Info, MapPin, Building,
   Cloud, CloudOff, ChevronDown, GripHorizontal, Maximize, Minimize,
   BookOpen, Target, Search, FolderTree, BarChartHorizontal, Layers, Microscope,
-  B_$0ed, Timer, Network, Plane, Dna, Bone, Baby, Eye, Check, ArrowRight
+  Bed, Timer, Network, Plane, Dna, Bone, Baby, Eye, Check, ArrowRight
 } from 'lucide-react';
 
 const CHART_MARGINS_BAR = { top: 20, right: 0, left: 0, bottom: 0 };
-const CHART_MARGINS_LINE = { top: 40, right: 20, left: 20, bottom: 0 };
+const CHART_MARGINS_LINE = { top: 40, right: 35, left: 20, bottom: 0 };
 const TOOLTIP_STYLE = { borderRadius: '12px', border: '1px solid #D8D8D8', fontSize: '12px', color: '#1E2F31' };
 const CHART_CURSOR_STYLE = { fill: '#F9F8F6' };
 const LEGEND_STYLE = { fontSize: '11px', paddingTop: '20px' };
@@ -44,7 +44,7 @@ const renderPieLabel = ({ cx, cy, midAngle, outerRadius, percent, index, name })
 
 const formatNumber = (val, decimals = 1) => {
   if (val === null || val === undefined || isNaN(val)) return "0";
-  const num = typeof val === 'string' ? parseFloat(val) : val;
+  const num = typeof val === 'string' ? parseFloat(val.replace(/,/g, '')) : val;
   if (Math.abs(num) < 1e-10) return "0";
   
   const formatted = new Intl.NumberFormat('en-US', { 
@@ -57,7 +57,7 @@ const formatNumber = (val, decimals = 1) => {
 
 const formatCurrency = (val) => {
   if (val === null || val === undefined || isNaN(val)) return "Rp 0 B";
-  const num = typeof val === 'string' ? parseFloat(val) : val;
+  const num = typeof val === 'string' ? parseFloat(val.replace(/,/g, '')) : val;
   if (Math.abs(num) < 1e-10) return "Rp 0 B";
   
   const formatted = new Intl.NumberFormat('en-US', { 
@@ -78,11 +78,7 @@ const calculatePayback = (cfs) => {
     cumulative += (cfs[i] || 0);
     if (cumulative >= 0 && prevCumulative < 0) return i + Math.abs(prevCumulative) / (cfs[i] || 1);
   }
-  const lastCF = cfs[cfs.length - 1];
-  if (lastCF > 0 && cumulative < 0) {
-      return cfs.length + (Math.abs(cumulative) / lastCF);
-  }
-  return 0;
+  return 0; // Return 0 if the project never catches up, preventing fake extrapolation
 };
 
 const calculateIRR = (cfs) => {
@@ -152,11 +148,16 @@ const callGemini = async (prompt, systemInstruction) => {
   for (let i = 0; i < 5; i++) {
     try {
       const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      if (!response.ok) throw new Error("API Error");
+      if (!response.ok) {
+          if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+              throw new Error(`Client Error: ${response.status}`); // Don't retry 4xx errors
+          }
+          throw new Error("API Error");
+      }
       const result = await response.json();
       return result.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
     } catch (error) {
-      if (i === 4) throw error;
+      if (error.message.includes("Client Error") || i === 4) throw error;
       await new Promise(res => setTimeout(Math.pow(2, i) * 1000, res));
     }
   }
