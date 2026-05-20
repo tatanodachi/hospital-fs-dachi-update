@@ -43,28 +43,27 @@ const renderPieLabel = ({ cx, cy, midAngle, outerRadius, percent, index, name })
 // ---------------------------------------------------
 
 const formatNumber = (val, decimals = 1) => {
-  if (val === null || val === undefined || isNaN(val)) return "0";
-  const num = typeof val === 'string' ? parseFloat(val.replace(/,/g, '')) : val;
-  if (Math.abs(num) < 1e-10) return "0";
+  if (val === null || val === undefined) return "0";
   
-  const formatted = new Intl.NumberFormat('en-US', { 
-    minimumFractionDigits: decimals, 
-    maximumFractionDigits: decimals 
-  }).format(Math.abs(num));
+  // 1. Clean and parse FIRST
+  const num = typeof val === 'string' ? parseFloat(val.replace(/,/g, '')) : Number(val);
   
+  // 2. Then check if it's NaN or effectively zero
+  if (isNaN(num) || Math.abs(num) < 1e-10) return "0";
+  
+  // 3. Format
+  const formatted = new Intl.NumberFormat('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(Math.abs(num));
   return num < 0 ? `(${formatted})` : formatted;
 };
 
 const formatCurrency = (val) => {
-  if (val === null || val === undefined || isNaN(val)) return "Rp 0 B";
-  const num = typeof val === 'string' ? parseFloat(val.replace(/,/g, '')) : val;
-  if (Math.abs(num) < 1e-10) return "Rp 0 B";
+  if (val === null || val === undefined) return "Rp 0 B";
   
-  const formatted = new Intl.NumberFormat('en-US', { 
-    minimumFractionDigits: 1, 
-    maximumFractionDigits: 1 
-  }).format(Math.abs(num));
+  const num = typeof val === 'string' ? parseFloat(val.replace(/,/g, '')) : Number(val);
   
+  if (isNaN(num) || Math.abs(num) < 1e-10) return "Rp 0 B";
+  
+  const formatted = new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Math.abs(num));
   return num < 0 ? `(Rp ${formatted} B)` : `Rp ${formatted} B`;
 };
 
@@ -315,7 +314,8 @@ const runOpCoEngine = (assumptions, config) => {
         stabilizedVolume: (stabilizedYear?.ipCases || 0) + (stabilizedYear?.opVisits || 0), 
         revPab: assumptions.beds > 0 ? ((stabilizedYear?.totalRev || 0) * 1000) / assumptions.beds : 0, 
         ebitdaPerBed: assumptions.beds > 0 ? ((stabilizedYear?.ebitda || 0) * 1000) / assumptions.beds : 0, 
-        fixedCostPct: ((stabilizedYear?.fixedCosts || 0) / (((stabilizedYear?.fixedCosts || 0) + (stabilizedYear?.varCosts || 0)) || 1)) * 100 
+        fixedCostPct: ((stabilizedYear?.fixedCosts || 0) / (((stabilizedYear?.fixedCosts || 0) + (stabilizedYear?.varCosts || 0)) || 1)) * 100,
+        beds: assumptions.beds
       }, 
       totalEquity, 
       projectIRR: calculateIRR(projectCfs), 
@@ -454,11 +454,14 @@ const runPropCoEngine = (assumptions, opCoModelData, config) => {
             outstandingDebtExLand -= principalExLand;
         }
 
-        const calcDep = (bv, basis, life, currentYear) => Math.min(basis / life, bv);
-        const d1 = calcDep(bvB, buildBasis, assumptions.depLifeBuilding || 20, i); bvB -= d1;
-        const d2 = (assumptions.includeMedEq && assumptions.medEqProcurement === 'lease' && i < (assumptions.medEqPurchaseOpYear || 4)) ? 0 : calcDep(bvM, medEqBasis, assumptions.depLifeMedEq || 10, i); bvM -= d2;
-        const d3 = calcDep(bvI, infraBasis, assumptions.depLifeInfra || 20, i); bvI -= d3;
-        const d4 = calcDep(bvF, ffeBasis, assumptions.depLifeFFE || 20, i); bvF -= d4;
+        const calcDep = (bv, basis, life, method) => {
+            if (method === 'DDB') return Math.min(bv * (2 / life), bv);
+            return Math.min(basis / life, bv); // Default to Straight Line
+        };
+        const d1 = calcDep(bvB, buildBasis, assumptions.depLifeBuilding || 20, assumptions.depMethodBuilding); bvB -= d1;
+        const d2 = (assumptions.includeMedEq && assumptions.medEqProcurement === 'lease' && i < (assumptions.medEqPurchaseOpYear || 4)) ? 0 : calcDep(bvM, medEqBasis, assumptions.depLifeMedEq || 10, assumptions.depMethodMedEq); bvM -= d2;
+        const d3 = calcDep(bvI, infraBasis, assumptions.depLifeInfra || 20, assumptions.depMethodInfra); bvI -= d3;
+        const d4 = calcDep(bvF, ffeBasis, assumptions.depLifeFFE || 20, assumptions.depMethodFFE); bvF -= d4;
         const dep = d1 + d2 + d3 + d4;
         
         const ebt = ebitda - interest - dep;
@@ -504,10 +507,10 @@ const runPropCoEngine = (assumptions, opCoModelData, config) => {
         unleveredIrr: calculateIRR(unleveredCfs), unleveredNpv: calculateNPV(unleveredCfs, assumptions.discountRate), 
         irrExLand: calculateIRR(equityCfsExLand), npvExLand: calculateNPV(equityCfsExLand, assumptions.discountRate), 
         payback: calculatePayback(equityCfs), operatingPayback: calculatePayback(operatingCfs), 
-        avgDscr: avgDscr / 10, minDscr: operatingData.filter(d => (d.principal + d.interest) > 0).length > 0 ? Math.min(...operatingData.filter(d => (d.principal + d.interest) > 0).map(d => d.dscr)) : 0, 
-        avgYield: avgYield / 10, moic: equityCfs.reduce((acc, val) => val > 0 ? acc + val : acc, 0) / totalEquity, 
-        costPerBed: totalCapex / 120, costPerSqm: assumptions.buildArea > 0 ? (totalCapex * 1000) / assumptions.buildArea : 0, 
-        yocExLand: (operatingData.reduce((acc, d) => acc + d.ebitda, 0) / 10) / (totalCapexExLand) 
+        avgDscr: projYears > 0 ? avgDscr / projYears : 0, minDscr: operatingData.filter(d => (d.principal + d.interest) > 0).length > 0 ? Math.min(...operatingData.filter(d => (d.principal + d.interest) > 0).map(d => d.dscr)) : 0, 
+        avgYield: projYears > 0 ? avgYield / projYears : 0, moic: equityCfs.reduce((acc, val) => val > 0 ? acc + val : acc, 0) / totalEquity, 
+        costPerBed: (opCoModelData?.opsMetrics?.beds > 0) ? totalCapex / opCoModelData.opsMetrics.beds : 0, costPerSqm: assumptions.buildArea > 0 ? (totalCapex * 1000) / assumptions.buildArea : 0, 
+        yocExLand: projYears > 0 ? (operatingData.reduce((acc, d) => acc + d.ebitda, 0) / projYears) / (totalCapexExLand) : 0 
       }, 
       totals: { 
         revenue: annualData.reduce((acc, d) => acc + (d.revenue || 0), 0), 
