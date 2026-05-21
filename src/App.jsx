@@ -2519,7 +2519,7 @@ const PropCoCascadeView = memo(({ data, onExport }) => (
   </div>
 ));
 
-const ConsolidatedDashboardView = memo(({ data, assumptions, isPresenting, holdCoScenario, setHoldCoScenario }) => (
+const ConsolidatedDashboardView = memo(({ data, assumptions, propCoAssumptions, handlePropCoChange, isPresenting, holdCoScenario, setHoldCoScenario }) => (
   <div className={isPresenting ? "grid grid-cols-1 lg:grid-cols-12 gap-6 items-start animate-in fade-in" : "space-y-6 animate-in fade-in"}>
     <div className={`space-y-6 ${isPresenting ? "lg:col-span-4" : ""}`}>
        
@@ -2534,6 +2534,13 @@ const ConsolidatedDashboardView = memo(({ data, assumptions, isPresenting, holdC
               <button onClick={() => setHoldCoScenario('breakeven')} className={`flex-1 min-w-[100px] px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${holdCoScenario === 'breakeven' ? 'bg-[#1C6048] shadow-sm border border-[#1C6048] text-white' : 'bg-[#EFEBE7] text-[#4C4A4B] hover:text-[#1E2F31]'}`}>Exit at Breakeven</button>
               <button onClick={() => setHoldCoScenario('debt_free')} className={`flex-1 min-w-[100px] px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${holdCoScenario === 'debt_free' ? 'bg-[#9B8B70] shadow-sm border border-[#9B8B70] text-white' : 'bg-[#EFEBE7] text-[#4C4A4B] hover:text-[#1E2F31]'}`}>Exit Post-Debt</button>
               <button onClick={() => setHoldCoScenario('none')} className={`flex-1 min-w-[100px] px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${holdCoScenario === 'none' ? 'bg-white shadow-sm border border-[#1C6048] text-[#1C6048]' : 'bg-[#EFEBE7] text-[#4C4A4B] hover:text-[#1E2F31]'}`}>No Exit (Yield)</button>
+          </div>
+          <div className="flex items-center justify-between pt-3 mt-1 border-t border-[#D8D8D8]">
+              <span className="text-[10px] font-bold text-[#4C4A4B] flex items-center gap-1.5"><Landmark size={14} className="text-[#9B8B70]"/> Bank Debt Financing (PropCo Level)</span>
+              <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" className="sr-only peer" checked={propCoAssumptions?.includeFinancing || false} onChange={(e) => handlePropCoChange('includeFinancing', e.target.checked)} />
+                  <div className="w-8 h-4 bg-[#D8D8D8] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#D8D8D8] after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#1C6048]"></div>
+              </label>
           </div>
        </div>
 
@@ -3250,7 +3257,7 @@ export default function App() {
 
         {activeTab !== 'overview' && activeTab !== 'study' && activeTab !== 'collab' && activeTab !== 'ai' && activeCompany === 'consolidated' && activeGroup === 'financials' && (
             <div className="animate-in fade-in duration-500">
-                {activeTab === 'dashboard' && <ConsolidatedDashboardView data={consolidatedModelData} assumptions={opCoAssumptions} isPresenting={isPresenting} holdCoScenario={holdCoScenario} setHoldCoScenario={setHoldCoScenario} />}
+                {activeTab === 'dashboard' && <ConsolidatedDashboardView data={consolidatedModelData} assumptions={opCoAssumptions} propCoAssumptions={propCoAssumptions} handlePropCoChange={handlePropCoChange} isPresenting={isPresenting} holdCoScenario={holdCoScenario} setHoldCoScenario={setHoldCoScenario} />}
                 {activeTab === 'comprehensive' && <ConsolidatedCascadeView data={consolidatedModelData} />}
             </div>
         )}
