@@ -1522,16 +1522,15 @@ const CollaborationStrategyView = memo(({ isPresenting }) => (
 ));
 
 const StudyView = memo(({ isPresenting, info }) => {
-  const [activeMiniTab, setActiveMiniTab] = useState('marketGap');
+  const [activeMiniTab, setActiveMiniTab] = useState('macro'); // Default to our new macro tab
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-12">
         {/* Navigation Bar for Study */}
         <div className="flex bg-white p-1.5 rounded-2xl border border-[#D8D8D8] shadow-sm w-fit overflow-x-auto max-w-full">
           <button 
-            disabled
-            className="flex items-center gap-2 px-5 py-2.5 rounded-[14px] text-xs font-bold transition-all whitespace-nowrap text-[#4C4A4B] opacity-20 cursor-not-allowed bg-gray-50"
-            title="Coming Soon"
+            onClick={() => setActiveMiniTab('macro')} 
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-[14px] text-xs font-bold transition-all whitespace-nowrap ${activeMiniTab === 'macro' ? 'bg-[#99B6AA] text-[#1E2F31] shadow-md' : 'text-[#4C4A4B] hover:text-[#1E2F31] hover:bg-[#EFEBE7]/50'}`}
           >
             <Map size={16}/> Macro Environment
           </button>
@@ -1559,44 +1558,140 @@ const StudyView = memo(({ isPresenting, info }) => {
         {activeMiniTab === 'macro' && (
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 animate-in fade-in zoom-in-95 duration-300">
              
-             <BentoBox colSpan="md:col-span-4" className="bg-[#1C6048] text-white border-transparent">
-                <BentoIcon icon={<Users size={28} />} color="emerald" className="bg-white/20 text-white" />
-                <p className="text-[11px] text-white/80 font-bold uppercase tracking-wider mb-2">Regional Population</p>
-                <p className="text-4xl lg:text-5xl font-black mb-4">3.2M</p>
-                <div className="mt-auto inline-flex px-3 py-1.5 bg-white/20 rounded-lg text-xs font-bold">+1.5% Annual Growth</div>
+             {/* Concept 2: Travel-Time & Tech Availability Radar */}
+             <BentoBox colSpan="md:col-span-12 lg:col-span-7" className="bg-white border-[#D8D8D8]">
+                <div className="flex items-center gap-3 mb-6">
+                   <MapPin size={24} className="text-[#1C6048]" />
+                   <div>
+                       <h2 className="text-lg font-black text-[#1E2F31] tracking-tight">Travel-Time Moat & Capability Radar</h2>
+                       <p className="text-[10px] text-[#4C4A4B] font-medium mt-0.5">Physical travel friction to nearest specialized oncology facilities.</p>
+                   </div>
+                </div>
+                
+                <div className="flex flex-col md:flex-row gap-8 items-center flex-1">
+                    {/* Concentric Radar Visualization */}
+                    <div className="relative w-48 h-48 flex items-center justify-center shrink-0 bg-[#F9F8F6] rounded-full border border-[#D8D8D8]">
+                        {/* Outer/Outflow Limit Ring */}
+                        <div className="absolute w-44 h-44 rounded-full border border-dashed border-[#9B8B70]/30 bg-[#9B8B70]/5 flex items-center justify-center animate-[spin_40s_linear_infinite]"></div>
+                        {/* Competitor Buffer Ring */}
+                        <div className="absolute w-32 h-32 rounded-full border border-[#99B6AA]/40 bg-[#99B6AA]/5 flex items-center justify-center"></div>
+                        {/* Vasanta Local Capture Ring */}
+                        <div className="absolute w-20 h-20 rounded-full border-2 border-[#1C6048]/40 bg-[#1C6048]/10 flex items-center justify-center">
+                            {/* Vasanta Central Beacon */}
+                            <div className="w-3 h-3 bg-[#1C6048] rounded-full shadow-[0_0_12px_rgba(28,96,72,0.8)] z-10 relative">
+                                <div className="absolute inset-0 rounded-full bg-[#1C6048] animate-ping opacity-70"></div>
+                            </div>
+                        </div>
+                        {/* Compass Lines */}
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-15">
+                             <div className="w-full h-px bg-[#1E2F31]"></div>
+                             <div className="h-full w-px bg-[#1E2F31] absolute"></div>
+                        </div>
+                        {/* Ring Labels */}
+                        <span className="absolute top-2 text-[8px] font-bold text-[#9B8B70] uppercase">4+ Hrs (Outflow)</span>
+                        <span className="absolute top-10 text-[8px] font-bold text-[#99B6AA] uppercase">90+ Mins</span>
+                        <span className="absolute top-16 text-[8px] font-bold text-[#1C6048] uppercase">15 Mins</span>
+                    </div>
+
+                    {/* Zone Cards */}
+                    <div className="flex-1 space-y-2.5 w-full">
+                        <div className="p-3 bg-[#E8EFEA] border border-[#1C6048]/30 rounded-xl flex justify-between items-center transition-transform hover:-translate-y-0.5">
+                            <div>
+                                <p className="text-[10px] font-black text-[#1C6048] uppercase tracking-widest">Vasanta Local Zone (&lt;15 mins)</p>
+                                <p className="text-[10px] font-medium text-[#4C4A4B] mt-0.5">Primary local capture. Zero competitive overlap.</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="font-black text-xs text-[#1E2F31]">PET-CT + LINAC</p>
+                                <p className="text-[8px] font-bold text-[#1C6048] uppercase">Immediate Access</p>
+                            </div>
+                        </div>
+                        <div className="p-3 bg-[#F9F8F6] border border-[#99B6AA]/30 rounded-xl flex justify-between items-center transition-transform hover:-translate-y-0.5">
+                            <div>
+                                <p className="text-[10px] font-black text-[#1E2F31] uppercase tracking-widest">Jakarta Competitor Ring (90+ mins)</p>
+                                <p className="text-[10px] font-medium text-[#4C4A4B] mt-0.5"> grueling commute for frail radiotherapy patients.</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="font-black text-xs text-[#4C4A4B]">LINAC Only</p>
+                                <p className="text-[8px] font-bold text-[#9B8B70] uppercase">Severe Commute</p>
+                            </div>
+                        </div>
+                        <div className="p-3 bg-[#F9F8F6] border border-[#9B8B70]/30 rounded-xl flex justify-between items-center transition-transform hover:-translate-y-0.5">
+                            <div>
+                                <p className="text-[10px] font-black text-[#9B8B70] uppercase tracking-widest">Regional Leakage (4+ hrs flight)</p>
+                                <p className="text-[10px] font-medium text-[#4C4A4B] mt-0.5">Outflow to Singapore/Malaysia due to domestic shortages.</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="font-black text-xs text-[#4C4A4B]">Premium Care</p>
+                                <p className="text-[8px] font-bold text-[#9B8B70] uppercase">USD $11.5B Flight</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
              </BentoBox>
 
-             <BentoBox colSpan="md:col-span-4" className="bg-[#1E2F31] text-white border-transparent">
-                <BentoIcon icon={<TrendingUp size={28} />} color="emerald" className="bg-white/20 text-white" />
-                <p className="text-[11px] text-white/80 font-bold uppercase tracking-wider mb-2">Regional GDP Growth</p>
-                <p className="text-4xl lg:text-5xl font-black mb-4">5.2%</p>
-                <div className="mt-auto inline-flex px-3 py-1.5 bg-white/20 rounded-lg text-xs font-bold">Above National Avg</div>
+             {/* Concept 3: TAM-to-SOM Premium Funnel */}
+             <BentoBox colSpan="md:col-span-12 lg:col-span-5" className="bg-[#EFEBE7] border-transparent">
+                 <div className="flex items-center gap-3 mb-6">
+                   <Users size={24} className="text-[#9B8B70]" />
+                   <div>
+                       <h2 className="text-lg font-black text-[#1E2F31] tracking-tight">Premium Market Funnel</h2>
+                       <p className="text-[10px] text-[#4C4A4B] font-medium mt-0.5">Isolating self-pay and private insurance lives (SES A & B).</p>
+                   </div>
+                 </div>
+                 
+                 <div className="space-y-4 flex-1">
+                     {/* Stage 1: TAM */}
+                     <div className="relative">
+                         <div className="w-full h-11 bg-white border border-[#D8D8D8] rounded-xl flex items-center justify-between px-4 shadow-sm">
+                             <span className="text-[10px] font-bold text-[#4C4A4B] uppercase tracking-wider">1. TAM (Total Catchment)</span>
+                             <span className="font-mono text-sm font-black text-[#1E2F31]">3,200,000</span>
+                         </div>
+                         <div className="w-full flex justify-center py-0.5"><div className="w-px h-3.5 border-l-2 border-dashed border-[#9B8B70]"></div></div>
+                     </div>
+
+                     {/* Stage 2: SAM */}
+                     <div className="relative">
+                         <div className="w-[85%] mx-auto h-11 bg-[#99B6AA]/20 border border-[#99B6AA] rounded-xl flex items-center justify-between px-4 shadow-sm">
+                             <span className="text-[10px] font-bold text-[#1E2F31] uppercase tracking-wider">2. SAM (SES A & B - 18%)</span>
+                             <span className="font-mono text-sm font-black text-[#1E2F31]">576,000</span>
+                         </div>
+                         <div className="w-full flex justify-center py-0.5"><div className="w-px h-3.5 border-l-2 border-dashed border-[#1C6048]"></div></div>
+                     </div>
+
+                     {/* Stage 3: SOM */}
+                     <div>
+                         <div className="w-[70%] mx-auto h-11 bg-[#1C6048] text-white rounded-xl flex items-center justify-between px-4 shadow-md border border-[#18533E]">
+                             <span className="text-[10px] font-black uppercase tracking-wider">3. SOM (Insured Target - 40%)</span>
+                             <span className="font-mono text-sm font-black text-white">230,400</span>
+                         </div>
+                     </div>
+                 </div>
+                 
+                 <div className="mt-6 pt-4 border-t border-[#D8D8D8]">
+                     <p className="text-[10px] text-[#4C4A4B] leading-relaxed font-medium">
+                         By filtering the regional demographic to strictly isolate **SES A & B (18%)** and capturing those with **Private Commercial Insurance (40%)**, we establish a core addressable market of **230.4k high-margin premium lives**, heavily de-risking our revenue-per-bed targets.
+                     </p>
+                 </div>
              </BentoBox>
 
-             <BentoBox colSpan="md:col-span-4" className="bg-[#9B8B70] text-white border-transparent">
-                <BentoIcon icon={<Coins size={28} />} color="emerald" className="bg-white/20 text-white" />
-                <p className="text-[11px] text-white/80 font-bold uppercase tracking-wider mb-2">Healthcare Spend p.c.</p>
-                <p className="text-4xl lg:text-5xl font-black mb-4">Rp 2.4M</p>
-                <div className="mt-auto inline-flex px-3 py-1.5 bg-white/20 rounded-lg text-xs font-bold">Growing Middle Class</div>
-             </BentoBox>
-
+             {/* Key Regional Infrastructure Context */}
              <BentoBox colSpan="md:col-span-12">
                <div className="flex items-center gap-4 mb-6">
-                 <BentoIcon icon={<MapPin size={24}/>} color="indigo" className="mb-0 w-12 h-12 rounded-xl" />
-                 <h2 className="text-xl font-black text-[#1E2F31] tracking-tight">Key Regional Insights</h2>
+                 <BentoIcon icon={<Map size={24}/>} color="indigo" className="mb-0 w-12 h-12 rounded-xl" />
+                 <h2 className="text-lg font-black text-[#1E2F31] tracking-tight">Feasibility Framework: Defending the Premium Moat</h2>
                </div>
                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                  <div className="bg-[#F9F8F6] p-5 rounded-2xl border border-[#D8D8D8]">
-                    <h4 className="font-bold text-[#1E2F31] mb-2 text-sm">Urbanization</h4>
-                    <p className="text-xs text-[#4C4A4B] leading-relaxed font-medium">Rapid urbanization and expansion of residential developments in the primary catchment area.</p>
+                    <h4 className="font-bold text-[#1E2F31] mb-2 text-sm">Geographic Inelasticity</h4>
+                    <p className="text-xs text-[#4C4A4B] leading-relaxed font-medium">Radiotherapy patients require consecutive daily treatments for 4–6 weeks. Traveling outside Tangerang is logistically unfeasible, guaranteeing high local retention.</p>
                  </div>
                  <div className="bg-[#F9F8F6] p-5 rounded-2xl border border-[#D8D8D8]">
-                    <h4 className="font-bold text-[#1E2F31] mb-2 text-sm">Insurance Penetration</h4>
-                    <p className="text-xs text-[#4C4A4B] leading-relaxed font-medium">Increasing insurance penetration (BPJS and Private) driving healthcare utilization rates higher.</p>
+                    <h4 className="font-bold text-[#1E2F31] mb-2 text-sm">Affluent Middle Class</h4>
+                    <p className="text-xs text-[#4C4A4B] leading-relaxed font-medium">Tangerang’s rapid middle-class growth translates directly to commercial insurance adoption, shifting clinical volume away from low-margin BPJS public plans.</p>
                  </div>
                  <div className="bg-[#F9F8F6] p-5 rounded-2xl border border-[#D8D8D8]">
-                    <h4 className="font-bold text-[#1E2F31] mb-2 text-sm">Aging Demographic</h4>
-                    <p className="text-xs text-[#4C4A4B] leading-relaxed font-medium">Aging demographic segment is growing, indicating future demand for specialized geriatric and chronic care.</p>
+                    <h4 className="font-bold text-[#1E2F31] mb-2 text-sm">The "First-Mover" Advantage</h4>
+                    <p className="text-xs text-[#4C4A4B] leading-relaxed font-medium">By securing local nuclear licensing (BAPETEN) and building the LINAC/PET-CT bunkers upfront, Vasanta pre-empts competitor entry, creating an operational monopoly.</p>
                  </div>
                </div>
              </BentoBox>
@@ -1896,19 +1991,19 @@ const StudyView = memo(({ isPresenting, info }) => {
                  <div className="overflow-x-auto pb-6 pt-6 px-2 -mx-2">
                      <div className="min-w-[800px] grid grid-cols-5 gap-3 lg:gap-4">
                          
-                         {/* Column 1: Row Labels */}
-                         <div className="flex flex-col justify-end">
-                             <div className="h-20"></div>
-                             <div className="h-16 flex items-center border-b border-[#D8D8D8] pr-4">
+                         {/* Column 1: Row Labels (Frozen Sticky Column) */}
+                         <div className="flex flex-col justify-end sticky left-0 bg-white z-20 pr-4 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.15)]">
+                             <div className="h-20 bg-white"></div>
+                             <div className="h-16 flex items-center border-b border-[#D8D8D8] pr-2 bg-white">
                                  <p className="text-[10px] font-bold text-[#4C4A4B] uppercase tracking-widest leading-tight">120-Bed Unit Economics</p>
                              </div>
-                             <div className="h-16 flex items-center border-b border-[#D8D8D8] pr-4">
+                             <div className="h-16 flex items-center border-b border-[#D8D8D8] pr-2 bg-white">
                                  <p className="text-[10px] font-bold text-[#4C4A4B] uppercase tracking-widest leading-tight">Competitive Moat</p>
                              </div>
-                             <div className="h-16 flex items-center border-b border-[#D8D8D8] pr-4">
+                             <div className="h-16 flex items-center border-b border-[#D8D8D8] pr-2 bg-white">
                                  <p className="text-[10px] font-bold text-[#4C4A4B] uppercase tracking-widest leading-tight">Inpatient Utilization</p>
                              </div>
-                             <div className="h-16"></div>
+                             <div className="h-16 bg-white"></div>
                          </div>
 
                          {/* Column 2: Oncology (The Winner Highlight) */}
