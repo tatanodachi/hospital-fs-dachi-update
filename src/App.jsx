@@ -105,7 +105,9 @@ const DEFAULT_OPCO_ASSUMPTIONS = {
   ipRevenue: 25, opRevenue: 0.5, priceIncYears1_6: 6, priceIncYears7_plus: 5,
   monthlyStaffCost: 3.8, staffInf: 4, ipMedSupply: 4.5, opMedSupply: 0.2, medSupplyInf: 3,
   adminExpRate: 2, utilExpRate: 5, mktgExpRate: 2, operatorFeeRate: 2.5,
-  insuranceMonthly: 52.3, docFeeIp: 16, docFeeOp: 24, rentTier1Rate: 15, rentTier2Rate: 15, rentTier3Rate: 15, rentTier1Limit: 1.8, rentTier2Limit: 2.2, corporateTax: 22,
+  insuranceMonthly: 52.3, docFeeIp: 16, docFeeOp: 24, 
+  rentStructureType: 'flatEbitdar', rentFlatEbitdarRate: 15, rentRevRate: 6, rentProfitRate: 2,
+  rentTier1Rate: 15, rentTier2Rate: 15, rentTier3Rate: 15, rentTier1Limit: 1.8, rentTier2Limit: 2.2, corporateTax: 22,
   partnerAEquity: 41.87, partnerBEquity: 40.23, jvaOpex: 2.5, commOpex: 15, workingCapitalOpex: 64.6,
   sharingPercentA: 51.00, equitySplitY1: 100, discountRate: 12, holdCoDiscountRate: 11,
   includeTerminalValue: true, exitMultiple: 15, sellingCosts: 0, dividendPayoutRatio: 80
@@ -221,13 +223,24 @@ const runOpCoEngine = (assumptions, config) => {
       
       let ebitdar = grossProfit - recurringOpex;
       
-      let currentRevPab = assumptions.beds > 0 ? totalRev / assumptions.beds : 0;
-      let rentRate = 0;
-      if (currentRevPab < assumptions.rentTier1Limit) rentRate = assumptions.rentTier1Rate;
-      else if (currentRevPab < assumptions.rentTier2Limit) rentRate = assumptions.rentTier2Rate;
-      else rentRate = assumptions.rentTier3Rate;
+      let rent = 0;
+      if (assumptions.rentStructureType === 'flatEbitdar') {
+          rent = ebitdar > 0 ? ((assumptions.rentFlatEbitdarRate ?? 15) / 100) * ebitdar : 0;
+      } else if (assumptions.rentStructureType === 'revAndProfit') {
+          let revRent = ((assumptions.rentRevRate ?? 5) / 100) * totalRev;
+          let remainingProfit = ebitdar - revRent;
+          let profitRent = remainingProfit > 0 ? ((assumptions.rentProfitRate ?? 10) / 100) * remainingProfit : 0;
+          rent = revRent + profitRent;
+      } else {
+          // Default: tiered structure
+          let currentRevPab = assumptions.beds > 0 ? totalRev / assumptions.beds : 0;
+          let rentRate = 0;
+          if (currentRevPab < assumptions.rentTier1Limit) rentRate = assumptions.rentTier1Rate;
+          else if (currentRevPab < assumptions.rentTier2Limit) rentRate = assumptions.rentTier2Rate;
+          else rentRate = assumptions.rentTier3Rate;
+          rent = ebitdar > 0 ? (rentRate / 100) * ebitdar : 0; 
+      }
 
-      let rent = ebitdar > 0 ? (rentRate / 100) * ebitdar : 0; 
       let ebitda = ebitdar - rent; 
       let tax = ebitda > 0 ? ebitda * (assumptions.corporateTax / 100) : 0;
       let netIncome = ebitda - tax;
@@ -3450,23 +3463,47 @@ const OpCoSettingsView = memo(({ assumptions, onChange, onSyncEquity, onValidate
               <AssumptionRow label="Doctor Fee OP" val={assumptions.docFeeOp} set={(v) => onChange('docFeeOp', v)} unit="%" isLocked={isLocked} />
           </div>
           <div className="space-y-4 row-span-2">
-              <SectionTitle title="OpEx & Tiered Rent" icon={<Briefcase size={16}/>} color="amber" />
+              <SectionTitle title="OpEx & Rent Strategy" icon={<Briefcase size={16}/>} color="amber" />
               <AssumptionRow label="Staff Cost (Mo)" val={assumptions.monthlyStaffCost} set={(v) => onChange('monthlyStaffCost', v)} unit="B" isLocked={isLocked} />
               <AssumptionRow label="Staff Inflation" val={assumptions.staffInf} set={(v) => onChange('staffInf', v)} unit="%" isLocked={isLocked} />
               <AssumptionRow label="Admin Rate" val={assumptions.adminExpRate} set={(v) => onChange('adminExpRate', v)} unit="%" isLocked={isLocked} />
               <div className="pt-2 border-t border-[#D8D8D8]">
-                  <div className="flex justify-between items-center mb-1">
-                      <p className="text-[10px] font-bold text-[#1C6048]">Variable Rent (EBITDAR %)</p>
-                      <div className="flex gap-1 items-center">
-                          <FormattedInput disabled={isLocked} val={assumptions.rentTier1Limit} set={(v) => onChange('rentTier1Limit', v)} className="w-8 p-0.5 text-center text-[8px] border border-[#D8D8D8] rounded font-black text-[#1E2F31]" placeholder="T1" />
-                          <span className="text-[8px] font-bold text-[#4C4A4B]">B</span>
-                          <FormattedInput disabled={isLocked} val={assumptions.rentTier2Limit} set={(v) => onChange('rentTier2Limit', v)} className="w-8 p-0.5 text-center text-[8px] border border-[#D8D8D8] rounded font-black text-[#1E2F31]" placeholder="T2" />
-                          <span className="text-[8px] font-bold text-[#4C4A4B]">B</span>
-                      </div>
+                  <div className="flex justify-between items-center group py-1 border-b border-[#D8D8D8] px-1 rounded transition-colors mb-2">
+                      <label className="text-[10px] text-[#4C4A4B] font-bold">Rent Scheme</label>
+                      <select disabled={isLocked} value={assumptions.rentStructureType} onChange={(e) => onChange('rentStructureType', e.target.value)} className="p-1 bg-[#F9F8F6] border border-[#D8D8D8] rounded text-[9px] font-bold text-[#1E2F31] outline-none cursor-pointer">
+                          <option value="flatEbitdar">Flat EBITDAR %</option>
+                          <option value="tiered">Tiered RevPAB</option>
+                          <option value="revAndProfit">% Rev + % Profit</option>
+                      </select>
                   </div>
-                  <AssumptionRow label={`Tier 1 (<${assumptions.rentTier1Limit}B RevPAB)`} val={assumptions.rentTier1Rate} set={(v) => onChange('rentTier1Rate', v)} unit="%" isLocked={isLocked} />
-                  <AssumptionRow label={`Tier 2 (<${assumptions.rentTier2Limit}B RevPAB)`} val={assumptions.rentTier2Rate} set={(v) => onChange('rentTier2Rate', v)} unit="%" isLocked={isLocked} />
-                  <AssumptionRow label={`Tier 3 (>${assumptions.rentTier2Limit}B RevPAB)`} val={assumptions.rentTier3Rate} set={(v) => onChange('rentTier3Rate', v)} unit="%" isLocked={isLocked} />
+                  
+                  {assumptions.rentStructureType === 'flatEbitdar' && (
+                      <AssumptionRow label="Flat Rent (EBITDAR)" val={assumptions.rentFlatEbitdarRate} set={(v) => onChange('rentFlatEbitdarRate', v)} unit="%" isLocked={isLocked} />
+                  )}
+                  
+                  {assumptions.rentStructureType === 'revAndProfit' && (
+                      <>
+                          <AssumptionRow label="Rent from Net Rev" val={assumptions.rentRevRate} set={(v) => onChange('rentRevRate', v)} unit="%" isLocked={isLocked} />
+                          <AssumptionRow label="Rent from Profit" val={assumptions.rentProfitRate} set={(v) => onChange('rentProfitRate', v)} unit="%" isLocked={isLocked} />
+                      </>
+                  )}
+                  
+                  {assumptions.rentStructureType === 'tiered' && (
+                      <>
+                          <div className="flex justify-between items-center mb-1 pl-1">
+                              <p className="text-[9px] font-bold text-[#1C6048]">RevPAB Thresholds</p>
+                              <div className="flex gap-1 items-center">
+                                  <FormattedInput disabled={isLocked} val={assumptions.rentTier1Limit} set={(v) => onChange('rentTier1Limit', v)} className="w-8 p-0.5 text-center text-[8px] border border-[#D8D8D8] rounded font-black text-[#1E2F31]" placeholder="T1" />
+                                  <span className="text-[8px] font-bold text-[#4C4A4B]">B</span>
+                                  <FormattedInput disabled={isLocked} val={assumptions.rentTier2Limit} set={(v) => onChange('rentTier2Limit', v)} className="w-8 p-0.5 text-center text-[8px] border border-[#D8D8D8] rounded font-black text-[#1E2F31]" placeholder="T2" />
+                                  <span className="text-[8px] font-bold text-[#4C4A4B]">B</span>
+                              </div>
+                          </div>
+                          <AssumptionRow label={`Tier 1 (<${assumptions.rentTier1Limit}B)`} val={assumptions.rentTier1Rate} set={(v) => onChange('rentTier1Rate', v)} unit="%" isLocked={isLocked} />
+                          <AssumptionRow label={`Tier 2 (<${assumptions.rentTier2Limit}B)`} val={assumptions.rentTier2Rate} set={(v) => onChange('rentTier2Rate', v)} unit="%" isLocked={isLocked} />
+                          <AssumptionRow label={`Tier 3 (>${assumptions.rentTier2Limit}B)`} val={assumptions.rentTier3Rate} set={(v) => onChange('rentTier3Rate', v)} unit="%" isLocked={isLocked} />
+                      </>
+                  )}
               </div>
           </div>
           <div className="space-y-4">
@@ -3794,7 +3831,7 @@ export default function App() {
     finally { setSelectionState(p => ({...p, isLoading: false})); }
   }, [selectionState.query]);
 
-  const handleOpCoChange = useCallback((k, v) => setOpCoAssumptions(p => ({ ...p, [k]: ['includeTerminalValue'].includes(k) ? v : (v === "" ? 0 : parseFloat(v)) || 0 })), []);
+  const handleOpCoChange = useCallback((k, v) => setOpCoAssumptions(p => ({ ...p, [k]: ['includeTerminalValue', 'rentStructureType'].includes(k) ? v : (v === "" ? 0 : parseFloat(v)) || 0 })), []);
   const handlePropCoChange = useCallback((k, v) => setPropCoAssumptions(p => ({ ...p, [k]: ['linkToOpCo', 'includeLand', 'includeMedEq', 'medEqProcurement', 'includeFFE', 'depMethodBuilding', 'depMethodMedEq', 'depMethodInfra', 'depMethodFFE', 'includeTerminalValue', 'exitMethod', 'includeFinancing'].includes(k) ? v : (v === "" ? 0 : parseFloat(v)) || 0 })), []);
 
   const syncEquityWithSharing = useCallback(() => {
