@@ -1531,12 +1531,15 @@ const targetRegions = [
     { id: "ts", name: "South Tangerang", query: "Tangerang Selatan, Indonesia", group: "Banten", population: 1474311, density: 8523, income: 85, commuter: 68, medianAge: 28, maleDistribution: [23110, 53271, 91933, 115210, 116558, 117233, 118647, 97991], femaleDistribution: [23312, 53735, 92736, 116215, 117576, 118256, 119682, 98846], fallbackLat: -6.2886, fallbackLon: 106.7179, fallbackRadius: 0.05 },
     { id: "tg", name: "Tangerang City", query: "Kota Tangerang, Indonesia", group: "Banten", population: 1977376, density: 11098, income: 122, commuter: 48, medianAge: 29, maleDistribution: [26327, 61212, 113756, 158145, 157844, 154782, 165449, 154659], femaleDistribution: [29313, 66524, 116233, 162857, 158728, 152113, 154832, 144602], fallbackLat: -6.1702, fallbackLon: 106.6403, fallbackRadius: 0.04 },
     { id: "tgr", name: "Tangerang Regency", query: "Kabupaten Tangerang, Indonesia", group: "Banten", population: 3516095, density: 3373, income: 58, commuter: 32, defaultOff: true, medianAge: 27, maleDistribution: [44270, 99883, 200007, 269109, 302360, 290100, 308035, 275297], femaleDistribution: [46153, 95069, 195181, 274740, 290369, 281738, 289501, 254283], fallbackLat: -6.1762, fallbackLon: 106.4820, fallbackRadius: 0.1 },
+    { id: "bg", name: "Bogor City", query: "Kota Bogor, Indonesia", group: "West Java", population: 1093570, density: 9780, income: 60, commuter: 38, defaultOff: true, medianAge: 29, maleDistribution: [19937, 40500, 64762, 80027, 87200, 87104, 86604, 82195], femaleDistribution: [23805, 42287, 64596, 77713, 83727, 83069, 81460, 78790], fallbackLat: -6.5971, fallbackLon: 106.7996, fallbackRadius: 0.04 },
+    { id: "bgr", name: "Bogor Regency", query: "Kabupaten Bogor, Indonesia", group: "West Java", population: 5721618, density: 1926, income: 58, commuter: 24, defaultOff: true, medianAge: 26, maleDistribution: [79039, 184133, 323695, 426942, 497127, 485176, 471092, 463359], femaleDistribution: [84314, 176874, 308936, 406179, 471528, 454921, 444784, 443519], fallbackLat: -6.5518, fallbackLon: 106.6291, fallbackRadius: 0.15 },
+    { id: "dp", name: "Depok City", query: "Kota Depok, Indonesia", group: "West Java", population: 2167911, density: 10871, income: 46, commuter: 67, defaultOff: true, medianAge: 29, maleDistribution: [33125, 76331, 135659, 171467, 169525, 161517, 172442, 169764], femaleDistribution: [39987, 80894, 133575, 169060, 173490, 155033, 163947, 162095], fallbackLat: -6.4025, fallbackLon: 106.7942, fallbackRadius: 0.05 },
     { id: "bk", name: "Bekasi City", query: "Kota Bekasi, Indonesia", group: "West Java", population: 2646272, density: 12453, income: 52, commuter: 60, defaultOff: true, medianAge: 28, maleDistribution: [43170, 101772, 156173, 202246, 221040, 201993, 201968, 200350], femaleDistribution: [45344, 107112, 161831, 202956, 222691, 193598, 192559, 191469], fallbackLat: -6.2383, fallbackLon: 106.9756, fallbackRadius: 0.06 }
 ];
 
 const mapLocations = [
     // Primary Anchor (With pulsing rings)
-    { id: "vasanta", name: "Proposed Vasanta Hospital", desc: "120-Bed Oncology Hub", lat: -6.1543, lon: 106.7398, color: "#1C6048", radii: [5000, 15000] },
+    { id: "vasanta", name: "Proposed Vasanta Hospital", desc: "120-Bed Oncology Hub", lat: -6.1543, lon: 106.7398, color: "#1C6048", radii: [5000, 10000] },
     
     // Competitors / Nodes
     { id: "tb", name: "TB Simatupang", desc: "South Jakarta competitor node", lat: -6.293221, lon: 106.81898208, color: "#9B8B70" },
@@ -1650,26 +1653,44 @@ const InteractiveDemographicMap = memo(() => {
     }, [leafletReady]);
 
     const setupLayerInteractions = (layer, region, mapInstance) => {
-        let hoverTimeout, hoverIntentTimeout;
+        let lastLatLng = null;
+
         layer.on('mouseover', function (e) {
             if (measureStateRef.current.isMeasuring) return;
             applyLayerStyle(this, region.id, true, viewModeRef.current);
             if (typeof this.bringToFront === 'function') this.bringToFront();
-            clearTimeout(hoverIntentTimeout); clearTimeout(hoverTimeout);
-            hoverIntentTimeout = setTimeout(() => {
+            
+            clearTimeout(hoverTooltipRef.current._exitTimeout);
+            lastLatLng = e.latlng;
+
+            hoverTooltipRef.current._enterTimeout = setTimeout(() => {
                 const tooltipContent = getTooltipContent(region, viewModeRef.current);
-                hoverTooltipRef.current.setLatLng(e.latlng).setContent(tooltipContent).addTo(mapInstance);
+                hoverTooltipRef.current.setLatLng(lastLatLng).setContent(tooltipContent).addTo(mapInstance);
             }, 500);
         });
 
         layer.on('mousemove', function (e) {
-            if (mapInstance.hasLayer(hoverTooltipRef.current)) hoverTooltipRef.current.setLatLng(e.latlng);
+            // Track position, but DO NOT instantly move the tooltip (removes the "sticky" behavior)
+            lastLatLng = e.latlng;
         });
 
         layer.on('mouseout', function () {
             applyLayerStyle(this, region.id, false, viewModeRef.current);
-            clearTimeout(hoverIntentTimeout); clearTimeout(hoverTimeout);
-            if (mapInstance.hasLayer(hoverTooltipRef.current)) mapInstance.removeLayer(hoverTooltipRef.current);
+            clearTimeout(hoverTooltipRef.current._enterTimeout);
+            
+            hoverTooltipRef.current._exitTimeout = setTimeout(() => {
+                if (mapInstance.hasLayer(hoverTooltipRef.current)) {
+                    mapInstance.removeLayer(hoverTooltipRef.current);
+                }
+            }, 0);
+        });
+        
+        // Hide the hover tooltip instantly if the user clicks to open the persistent popup
+        layer.on('click', function () {
+            clearTimeout(hoverTooltipRef.current._enterTimeout);
+            if (mapInstance.hasLayer(hoverTooltipRef.current)) {
+                mapInstance.removeLayer(hoverTooltipRef.current);
+            }
         });
         
         layer.bindPopup(getTooltipContent(region, viewModeRef.current));
@@ -1780,9 +1801,15 @@ const InteractiveDemographicMap = memo(() => {
             else if (!isActive && map.hasLayer(layer)) { map.removeLayer(layer); }
             if (isActive) {
                 applyLayerStyle(layer, id, false, viewMode);
-                layer.setPopupContent(getTooltipContent(targetRegions.find(r => r.id === id), viewMode));
+                const newContent = getTooltipContent(targetRegions.find(r => r.id === id), viewMode);
+                layer.setPopupContent(newContent);
             }
         });
+        
+        // Safely dismiss the global hover tooltip if the user changes the dropdown view
+        if (hoverTooltipRef.current && map.hasLayer(hoverTooltipRef.current)) {
+            map.removeLayer(hoverTooltipRef.current);
+        }
     }, [activeRegions, viewMode, regionFetchStatuses]);
 
     useEffect(() => {
@@ -1906,8 +1933,13 @@ const InteractiveDemographicMap = memo(() => {
     return (
         <div className="w-full h-[600px] rounded-2xl overflow-hidden relative z-10 font-sans border border-[#D8D8D8] shadow-sm">
             <style>{`
+                .vignette {
+                    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+                    box-shadow: inset 0 0 200px rgba(30, 47, 49, 0.35);
+                    pointer-events: none; z-index: 10;
+                }
                 .leaflet-tooltip.custom-tooltip, .leaflet-popup-content-wrapper {
-                    background-color: rgba(239, 235, 231, 0.95); backdrop-filter: blur(8px);
+                    background-color: rgba(239, 235, 231, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
                     border-radius: 8px; box-shadow: 0 10px 30px rgba(30, 47, 49, 0.15);
                     border: 1px solid rgba(155, 139, 112, 0.2); color: #1E2f31;
                     font-weight: 600; font-family: 'Plus Jakarta Sans', sans-serif;
@@ -1932,22 +1964,51 @@ const InteractiveDemographicMap = memo(() => {
                 .switch.item input:checked + .slider { background-color: #1E2f31; }
                 .switch.group input:checked + .slider:before { transform: translateX(14px); }
                 .switch.item input:checked + .slider:before { transform: translateX(10px); }
-                @keyframes breathePulse { 0% { opacity: 0.2; transform: scale(0.95); } 100% { opacity: 0.6; transform: scale(1.05); } }
-                .breathe-outer { animation: breathePulse 3s infinite alternate ease-in-out; transform-origin: center; }
+                @keyframes breathePulse { 0% { opacity: 0.1; } 100% { opacity: 0.5; } }
+                .breathe-outer { animation: breathePulse 3s infinite alternate ease-in-out; }
+                .breathe-inner { animation: breathePulse 3s infinite alternate-reverse ease-in-out; }
                 
                 /* Align Leaflet controls with Tailwind 16px grid */
                 .leaflet-left .leaflet-control { margin-left: 16px !important; }
                 .leaflet-bottom .leaflet-control { margin-bottom: 16px !important; }
+                
+                /* Unify Leaflet Zoom Control with Ruler Design */
+                .leaflet-bar {
+                    border: 2px solid rgba(0,0,0,0.2) !important;
+                    box-shadow: 0 1px 5px rgba(0,0,0,0.65) !important;
+                    border-radius: 4px !important;
+                    background-clip: padding-box !important;
+                    overflow: hidden;
+                }
+                .leaflet-bar a, .leaflet-touch .leaflet-bar a {
+                    background-color: white !important;
+                    color: #4C4A4B !important;
+                    width: 30px !important;
+                    height: 30px !important;
+                    line-height: 30px !important;
+                    display: flex !important;
+                    justify-content: center !important;
+                    align-items: center !important;
+                    font-size: 16px !important;
+                    font-weight: 700 !important;
+                    border-bottom: 1px solid rgba(0,0,0,0.1) !important;
+                }
+                .leaflet-bar a:last-child { border-bottom: none !important; }
+                .leaflet-bar a:hover {
+                    background-color: #f4f4f4 !important;
+                    color: #1C6048 !important;
+                }
             `}</style>
 
+            <div className="vignette"></div>
             <div id="demographics-map" className="w-full h-full z-[1]"></div>
 
-            <div className={`absolute bottom-4 left-4 z-[1010] bg-white/70 backdrop-blur-sm border border-[#D8D8D8]/50 py-2 px-4 rounded-lg shadow-md text-xs font-medium text-[#4C4A4B] transition-opacity duration-500 pointer-events-none flex items-center ${loadingStatus.active ? 'opacity-100' : 'opacity-0'}`}>
+            <div className={`absolute bottom-4 right-4 z-[1010] bg-white/70 backdrop-blur-sm border border-[#D8D8D8]/50 py-2 px-4 rounded-lg shadow-md text-xs font-medium text-[#4C4A4B] transition-opacity duration-500 pointer-events-none flex items-center ${loadingStatus.active ? 'opacity-100' : 'opacity-0'}`}>
                 <span className={`inline-block w-2 h-2 rounded-full mr-2 ${loadingStatus.active ? 'bg-[#1C6048] animate-pulse' : 'bg-[#1C6048]'}`}></span>
                 <span>{loadingStatus.text}</span>
             </div>
 
-            <div className={`absolute top-4 left-4 z-[1000] bg-white/95 backdrop-blur-md border border-[#D8D8D8] rounded-xl shadow-lg w-[320px] max-h-[calc(100%-110px)] overflow-y-auto custom-scrollbar flex flex-col pointer-events-auto transition-all ${isPanelOpen ? 'translate-x-0' : '-translate-x-[110%]'}`}>
+            <div className={`absolute top-4 left-4 z-[1000] bg-white/95 backdrop-blur-md border border-[#D8D8D8] rounded-xl shadow-lg w-[calc(100%-32px)] sm:w-[320px] max-h-[calc(100%-110px)] overflow-y-auto custom-scrollbar flex flex-col pointer-events-auto transition-all ${isPanelOpen ? 'translate-x-0' : '-translate-x-[120%]'}`}>
                 <div className="p-4 border-b border-[#D8D8D8] flex justify-between items-center sticky top-0 bg-white/95 z-10">
                     <div className="text-sm font-extrabold text-[#1E2f31] uppercase tracking-wider flex items-center gap-2">
                         <Map size={16} className="text-[#1C6048]" /> <span>Geo-Demographics</span>
@@ -2156,17 +2217,17 @@ const StudyView = memo(({ isPresenting, info }) => {
                              <div className="h-full w-px bg-[#1E2F31] absolute"></div>
                         </div>
                         {/* Ring Labels */}
-                        <span className="absolute top-2 text-[8px] font-bold text-[#9B8B70] uppercase">4+ Hrs (Outflow)</span>
-                        <span className="absolute top-10 text-[8px] font-bold text-[#99B6AA] uppercase">90+ Mins</span>
-                        <span className="absolute top-16 text-[8px] font-bold text-[#1C6048] uppercase">15 Mins</span>
+                        <span className="absolute top-2 text-[8px] font-bold text-[#9B8B70] uppercase">Overseas Outflow</span>
+                        <span className="absolute top-10 text-[8px] font-bold text-[#99B6AA] uppercase">10km (Secondary)</span>
+                        <span className="absolute top-16 text-[8px] font-bold text-[#1C6048] uppercase">5km (Primary)</span>
                     </div>
 
                     {/* Zone Cards */}
                     <div className="flex-1 space-y-2.5 w-full">
                         <div className="p-3 bg-[#E8EFEA] border border-[#1C6048]/30 rounded-xl flex justify-between items-center transition-transform hover:-translate-y-0.5">
                             <div>
-                                <p className="text-[10px] font-black text-[#1C6048] uppercase tracking-widest">Vasanta Local Zone (&lt;15 mins)</p>
-                                <p className="text-[10px] font-medium text-[#4C4A4B] mt-0.5">Primary local capture. Zero competitive overlap.</p>
+                                <p className="text-[10px] font-black text-[#1C6048] uppercase tracking-widest">Primary Catchment (0–5km / &lt;15 mins)</p>
+                                <p className="text-[10px] font-medium text-[#4C4A4B] mt-0.5">Local monopoly zone. Immediate access to daily therapy cycles.</p>
                             </div>
                             <div className="text-right">
                                 <p className="font-black text-xs text-[#1E2F31]">PET-CT + LINAC</p>
@@ -2175,12 +2236,12 @@ const StudyView = memo(({ isPresenting, info }) => {
                         </div>
                         <div className="p-3 bg-[#F9F8F6] border border-[#99B6AA]/30 rounded-xl flex justify-between items-center transition-transform hover:-translate-y-0.5">
                             <div>
-                                <p className="text-[10px] font-black text-[#1E2F31] uppercase tracking-widest">Jakarta Competitor Ring (90+ mins)</p>
-                                <p className="text-[10px] font-medium text-[#4C4A4B] mt-0.5"> grueling commute for frail radiotherapy patients.</p>
+                                <p className="text-[10px] font-black text-[#1E2F31] uppercase tracking-widest">Secondary Catchment (5–10km / &lt;45 mins)</p>
+                                <p className="text-[10px] font-medium text-[#4C4A4B] mt-0.5">Includes high-growth corridors. Competitive commute advantage over Jakarta.</p>
                             </div>
                             <div className="text-right">
                                 <p className="font-black text-xs text-[#4C4A4B]">LINAC Only</p>
-                                <p className="text-[8px] font-bold text-[#9B8B70] uppercase">Severe Commute</p>
+                                <p className="text-[8px] font-bold text-[#9B8B70] uppercase">Strategic Inroad</p>
                             </div>
                         </div>
                         <div className="p-3 bg-[#F9F8F6] border border-[#9B8B70]/30 rounded-xl flex justify-between items-center transition-transform hover:-translate-y-0.5">
