@@ -1388,7 +1388,7 @@ const ProjectOverviewView = memo(({ info, setInfo, isLocked }) => (
     {/* Master Plan Visuals Bento (Left side, large map) */}
     <BentoBox colSpan="md:col-span-12 lg:col-span-8" className="p-0 overflow-hidden border-[#D8D8D8] min-h-[350px] lg:min-h-[100%] relative rounded-[28px] shadow-sm">
       {/* ⚠️ SWAP THIS URL WITH YOUR SITE PLAN IMAGE */}
-      <img src="/site.jpg" alt="Site Plan" className="absolute inset-0 w-full h-full object-cover" />
+      <img src="/Site.jpg" alt="Site Plan" className="absolute inset-0 w-full h-full object-cover" />
       
       <div className="absolute inset-0 bg-gradient-to-t from-[#1E2F31]/60 via-transparent to-transparent pointer-events-none"></div>
       <div className="absolute bottom-6 left-6 bg-white/95 backdrop-blur-md px-4 py-3 rounded-xl shadow-lg border border-[#D8D8D8] flex items-center gap-3">
@@ -1404,7 +1404,7 @@ const ProjectOverviewView = memo(({ info, setInfo, isLocked }) => (
     <BentoBox colSpan="md:col-span-12 lg:col-span-4" className="bg-[#EFEBE7] border-transparent p-0 overflow-hidden flex flex-col">
       {/* ⚠️ SWAP THIS URL WITH YOUR 3D RENDER IMAGE */}
       <div className="w-full h-48 lg:h-56 relative shrink-0 bg-gray-200">
-          <img src="/render.jpg" alt="3D Render" className="w-full h-full object-cover" />
+          <img src="/Render.jpg" alt="3D Render" className="w-full h-full object-cover" />
           <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded text-[9px] font-black uppercase text-[#1E2F31] shadow-sm tracking-widest">
               Proposed Concept
           </div>
