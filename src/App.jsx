@@ -12,7 +12,7 @@ import {
   AlertTriangle, Grid, Clock, Lock, Unlock, Info, MapPin, Building,
   Cloud, CloudOff, ChevronDown, GripHorizontal, Maximize, Minimize,
   BookOpen, Target, Search, FolderTree, BarChartHorizontal, Layers, Microscope,
-  Bed, Timer, Network, Plane, Dna, Bone, Baby, Eye, Check, ArrowRight
+  Bed, Timer, Network, Plane, Dna, Bone, Baby, Eye, Check, ArrowRight, Ruler
 } from 'lucide-react';
 
 const CHART_MARGINS_BAR = { top: 20, right: 0, left: 0, bottom: 0 };
@@ -1521,6 +1521,574 @@ const CollaborationStrategyView = memo(({ isPresenting }) => (
   </div>
 ));
 
+// === INTERACTIVE MAP CONSTANTS ===
+const targetRegions = [
+    { id: "jp", name: "Central Jakarta", query: "Jakarta Pusat, Indonesia", group: "DKI Jakarta", population: 1057270, density: 21831, income: 949, commuter: 75, medianAge: 31, maleDistribution: [17168, 38731, 68126, 83155, 80006, 83945, 84168, 75379], femaleDistribution: [24877, 42137, 68132, 83496, 78477, 79872, 79045, 70556], fallbackLat: -6.1805, fallbackLon: 106.8284, fallbackRadius: 0.035, defaultOff: true },
+    { id: "ju", name: "North Jakarta", query: "Jakarta Utara, Indonesia", group: "DKI Jakarta", population: 1819030, density: 12378, income: 392, commuter: 42, medianAge: 29, maleDistribution: [30520, 65710, 109660, 143670, 146670, 138460, 142690, 138500], femaleDistribution: [36880, 69780, 108990, 142570, 143090, 134470, 134780, 132590], fallbackLat: -6.1214, fallbackLon: 106.8922, fallbackRadius: 0.04, defaultOff: true },
+    { id: "js", name: "South Jakarta", query: "Jakarta Selatan, Indonesia", group: "DKI Jakarta", population: 2323644, density: 15233, income: 409, commuter: 65, medianAge: 32, maleDistribution: [36807, 80261, 152503, 186120, 169619, 184051, 193763, 156247], femaleDistribution: [46476, 87743, 151723, 193696, 177339, 177831, 182959, 146506], fallbackLat: -6.2615, fallbackLon: 106.8106, fallbackRadius: 0.045, defaultOff: true },
+    { id: "jb", name: "West Jakarta", query: "Jakarta Barat, Indonesia", group: "DKI Jakarta", population: 2525856, density: 19953, income: 269, commuter: 58, medianAge: 30, maleDistribution: [39097, 83101, 153808, 212416, 195279, 193913, 208734, 184228], femaleDistribution: [50108, 89782, 149586, 212272, 198009, 186988, 196935, 171600], fallbackLat: -6.1683, fallbackLon: 106.7588, fallbackRadius: 0.04 },
+    { id: "jt", name: "East Jakarta", query: "Jakarta Timur, Indonesia", group: "DKI Jakarta", population: 3085080, density: 16622, income: 218, commuter: 62, defaultOff: true, medianAge: 31, maleDistribution: [53220, 118690, 193380, 234910, 236790, 240090, 240200, 227370], femaleDistribution: [61860, 126040, 197920, 237040, 240000, 232680, 227530, 217360], fallbackLat: -6.2250, fallbackLon: 106.9004, fallbackRadius: 0.05 },
+    { id: "ts", name: "South Tangerang", query: "Tangerang Selatan, Indonesia", group: "Banten", population: 1474311, density: 8523, income: 85, commuter: 68, medianAge: 28, maleDistribution: [23110, 53271, 91933, 115210, 116558, 117233, 118647, 97991], femaleDistribution: [23312, 53735, 92736, 116215, 117576, 118256, 119682, 98846], fallbackLat: -6.2886, fallbackLon: 106.7179, fallbackRadius: 0.05 },
+    { id: "tg", name: "Tangerang City", query: "Kota Tangerang, Indonesia", group: "Banten", population: 1977376, density: 11098, income: 122, commuter: 48, medianAge: 29, maleDistribution: [26327, 61212, 113756, 158145, 157844, 154782, 165449, 154659], femaleDistribution: [29313, 66524, 116233, 162857, 158728, 152113, 154832, 144602], fallbackLat: -6.1702, fallbackLon: 106.6403, fallbackRadius: 0.04 },
+    { id: "tgr", name: "Tangerang Regency", query: "Kabupaten Tangerang, Indonesia", group: "Banten", population: 3516095, density: 3373, income: 58, commuter: 32, defaultOff: true, medianAge: 27, maleDistribution: [44270, 99883, 200007, 269109, 302360, 290100, 308035, 275297], femaleDistribution: [46153, 95069, 195181, 274740, 290369, 281738, 289501, 254283], fallbackLat: -6.1762, fallbackLon: 106.4820, fallbackRadius: 0.1 },
+    { id: "bk", name: "Bekasi City", query: "Kota Bekasi, Indonesia", group: "West Java", population: 2646272, density: 12453, income: 52, commuter: 60, defaultOff: true, medianAge: 28, maleDistribution: [43170, 101772, 156173, 202246, 221040, 201993, 201968, 200350], femaleDistribution: [45344, 107112, 161831, 202956, 222691, 193598, 192559, 191469], fallbackLat: -6.2383, fallbackLon: 106.9756, fallbackRadius: 0.06 }
+];
+
+const mapLocations = [
+    // Primary Anchor (With pulsing rings)
+    { id: "vasanta", name: "Proposed Vasanta Hospital", desc: "120-Bed Oncology Hub", lat: -6.1543, lon: 106.7398, color: "#1C6048", radii: [5000, 15000] },
+    
+    // Competitors / Nodes
+    { id: "tb", name: "TB Simatupang", desc: "South Jakarta competitor node", lat: -6.293221, lon: 106.81898208, color: "#9B8B70" },
+    { id: "pik", name: "Pantai Indah Kapuk", desc: "Premium coastal district", lat: -6.1112, lon: 106.7404, color: "#9B8B70" }
+    // You can add more locations here by copying the format above!
+];
+
+const ageCohorts = ["70+", "60-69", "50-59", "40-49", "30-39", "20-29", "10-19", "0-9"];
+
+const regionGroups = targetRegions.reduce((acc, region) => {
+    if (!acc[region.group]) acc[region.group] = [];
+    acc[region.group].push(region);
+    return acc;
+}, {});
+
+const getDensityColor = (density) => density > 15000 ? '#134433' : density > 10000 ? '#1C6048' : density > 5000 ? '#41856B' : '#99B6AA';
+const getEconomyColor = (income) => income >= 500 ? '#8C7A5E' : income >= 300 ? '#AFA189' : income >= 100 ? '#C8BEAC' : '#E1DCD3';
+const getPopulationColor = (pop) => pop >= 3000000 ? '#7C3A21' : pop >= 2000000 ? '#A95C3E' : pop >= 1500000 ? '#D08C70' : '#E8C2B3';
+const getCommuterColor = (rate) => rate > 60 ? '#1E3A8A' : rate > 45 ? '#3B82F6' : rate > 30 ? '#60A5FA' : '#DBEAFE';
+const getAgeColor = (age) => age >= 31 ? '#581C87' : age >= 29 ? '#8B5CF6' : age >= 27 ? '#C084FC' : '#F3E8FF';
+const getGroupColor = (group) => group === "DKI Jakarta" ? "#1C6048" : group === "Banten" ? "#1E2f31" : "#9B8B70";
+
+const formatAxisLabel = (val) => {
+    if (val === 0) return '0';
+    if (val >= 1000000) return (val / 1000000).toFixed(1) + 'M';
+    if (val >= 1000) return (val / 1000).toFixed(0) + 'k';
+    return val.toString();
+};
+
+const generateFallbackGeoJSON = (centerLat, centerLon, radiusDegrees) => {
+    const points = 32;
+    const coords = [];
+    for (let i = 0; i < points; i++) {
+        const angle = (i * 360 / points) * (Math.PI / 180);
+        const lat = centerLat + (radiusDegrees * Math.cos(angle));
+        const lon = centerLon + (radiusDegrees * Math.sin(angle) / Math.cos(centerLat * Math.PI / 180));
+        coords.push([lon, lat]);
+    }
+    coords.push(coords[0]);
+    return { type: "Polygon", coordinates: [coords] };
+};
+
+const InteractiveDemographicMap = memo(() => {
+    const [leafletReady, setLeafletReady] = useState(false);
+    const [isPanelOpen, setIsPanelOpen] = useState(true);
+    const [viewMode, setViewMode] = useState('admin');
+    const [pyramidExpanded, setPyramidExpanded] = useState(false);
+    const [regionsSectionExpanded, setRegionsSectionExpanded] = useState(true);
+    const [poiSectionExpanded, setPoiSectionExpanded] = useState(true);
+    const [expandedGroups, setExpandedGroups] = useState({});
+    
+    const [activeRegions, setActiveRegions] = useState(targetRegions.filter(r => !r.defaultOff).map(r => r.id));
+    const [activePOIs, setActivePOIs] = useState(mapLocations.map(l => l.id));
+    const [loadingStatus, setLoadingStatus] = useState({ active: true, text: 'Initializing...', isError: false });
+    const [regionFetchStatuses, setRegionFetchStatuses] = useState({});
+    
+    const [isMeasuring, setIsMeasuring] = useState(false);
+
+    const mapRef = useRef(null);
+    const regionsLayersRef = useRef({});
+    const geoJsonCacheRef = useRef({});
+    const hoverTooltipRef = useRef(null);
+    const poiGroupRef = useRef(null);
+    const poiLayersRef = useRef({});
+    const measureStateRef = useRef({ points: [], line: null, dynamicLine: null, tooltip: null, markers: [] });
+
+    const viewModeRef = useRef(viewMode);
+    useEffect(() => { viewModeRef.current = viewMode; }, [viewMode]);
+
+    useEffect(() => {
+        if (window.L) {
+            setLeafletReady(true);
+            return;
+        }
+        const leafletCSS = document.createElement('link');
+        leafletCSS.rel = 'stylesheet';
+        leafletCSS.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(leafletCSS);
+
+        const leafletJS = document.createElement('script');
+        leafletJS.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        leafletJS.onload = () => setLeafletReady(true);
+        document.body.appendChild(leafletJS);
+    }, []);
+
+    useEffect(() => {
+        if (!leafletReady || mapRef.current) return;
+        const L = window.L;
+
+        const map = L.map('demographics-map', { zoomControl: false }).setView([-6.1543, 106.7398], 11);
+        L.control.zoom({ position: 'bottomleft' }).addTo(map);
+
+        map.createPane('ringsPane'); map.getPane('ringsPane').style.zIndex = 410;
+        map.createPane('markersPane'); map.getPane('markersPane').style.zIndex = 420;
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '&copy; CARTO' }).addTo(map);
+
+        hoverTooltipRef.current = L.tooltip({ className: 'custom-tooltip', direction: 'top', offset: [0, -10] });
+        poiGroupRef.current = L.layerGroup().addTo(map);
+
+        mapRef.current = map;
+        fetchRegionBorders(map);
+        initPOIs(map);
+
+        return () => {
+            if (mapRef.current) {
+                mapRef.current.remove();
+                mapRef.current = null;
+            }
+        };
+    }, [leafletReady]);
+
+    const setupLayerInteractions = (layer, region, mapInstance) => {
+        let hoverTimeout, hoverIntentTimeout;
+        layer.on('mouseover', function (e) {
+            if (measureStateRef.current.isMeasuring) return;
+            applyLayerStyle(this, region.id, true, viewModeRef.current);
+            if (typeof this.bringToFront === 'function') this.bringToFront();
+            clearTimeout(hoverIntentTimeout); clearTimeout(hoverTimeout);
+            hoverIntentTimeout = setTimeout(() => {
+                const tooltipContent = getTooltipContent(region, viewModeRef.current);
+                hoverTooltipRef.current.setLatLng(e.latlng).setContent(tooltipContent).addTo(mapInstance);
+            }, 500);
+        });
+
+        layer.on('mousemove', function (e) {
+            if (mapInstance.hasLayer(hoverTooltipRef.current)) hoverTooltipRef.current.setLatLng(e.latlng);
+        });
+
+        layer.on('mouseout', function () {
+            applyLayerStyle(this, region.id, false, viewModeRef.current);
+            clearTimeout(hoverIntentTimeout); clearTimeout(hoverTimeout);
+            if (mapInstance.hasLayer(hoverTooltipRef.current)) mapInstance.removeLayer(hoverTooltipRef.current);
+        });
+        
+        layer.bindPopup(getTooltipContent(region, viewModeRef.current));
+        regionsLayersRef.current[region.id] = layer;
+        setRegionFetchStatuses(prev => ({ ...prev, [region.id]: 'success' }));
+    };
+
+    const fetchRegionBorders = async (mapInstance) => {
+        const L = window.L;
+        let loadedCount = 0;
+        for (const region of targetRegions) {
+            setLoadingStatus({ active: true, text: `Loading boundary: ${region.name}` });
+            setRegionFetchStatuses(prev => ({ ...prev, [region.id]: 'loading' }));
+            
+            let success = false;
+            let retries = 2;
+            while (!success && retries > 0) {
+                try {
+                    const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(region.query)}&polygon_geojson=1&format=json`);
+                    if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                    const data = await response.json();
+                    
+                    if (data && data.length > 0 && data[0].geojson) {
+                        geoJsonCacheRef.current[region.id] = data[0].geojson;
+                        const layer = L.geoJSON(data[0].geojson, { className: 'region-polygon' });
+                        setupLayerInteractions(layer, region, mapInstance);
+                        success = true;
+                    } else {
+                        throw new Error("No GeoJSON");
+                    }
+                } catch (error) {
+                    retries--;
+                    if (retries <= 0) {
+                        const fallbackGeoJSON = generateFallbackGeoJSON(region.fallbackLat, region.fallbackLon, region.fallbackRadius);
+                        geoJsonCacheRef.current[region.id] = fallbackGeoJSON;
+                        const layer = L.geoJSON(fallbackGeoJSON, { className: 'region-polygon' });
+                        setupLayerInteractions(layer, region, mapInstance);
+                        success = true;
+                    } else {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                }
+            }
+            loadedCount++;
+            if (loadedCount < targetRegions.length) await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        setLoadingStatus({ active: true, text: "Boundaries loaded", isError: false });
+        setTimeout(() => {
+            setLoadingStatus(prev => ({ ...prev, active: false }));
+            frameActiveRegions(mapInstance);
+        }, 1500);
+    };
+
+    const getTooltipContent = (region, mode) => {
+        if (mode === 'admin') return `<b>${region.name}</b><br><span style="font-size:11px;color:#777;">${region.group}</span>`;
+        if (mode === 'population') return `<b>${region.name}</b><br><span style="font-size:11px;color:#777;">Total: ${(region.population / 1000000).toFixed(1)} Million People</span>`;
+        if (mode === 'density') return `<b>${region.name}</b><br><span style="font-size:11px;color:#777;">${region.density.toLocaleString('en-US')} people / km²</span>`;
+        if (mode === 'commuter') return `<b>${region.name}</b><br><span style="font-size:11px;color:#777;">Commuter Rate: ${region.commuter}%</span>`;
+        if (mode === 'age') return `<b>${region.name}</b><br><span style="font-size:11px;color:#777;">Median Age: ${region.medianAge} Years</span>`;
+        return `<b>${region.name}</b><br><span style="font-size:11px;color:#777;">Est. GDRP: IDR ${region.income}M / year</span>`;
+    };
+
+    const applyLayerStyle = (layer, regionId, isHovered, mode) => {
+        const region = targetRegions.find(r => r.id === regionId);
+        if (!region) return;
+
+        if (mode === 'admin') {
+            const groupColor = getGroupColor(region.group);
+            layer.setStyle({ color: groupColor, weight: isHovered ? 2.5 : 1.5, dashArray: '4, 4', fillColor: groupColor, fillOpacity: isHovered ? 0.35 : 0.20 });
+        } else {
+            let fillColor = '#ccc';
+            if (mode === 'density') fillColor = getDensityColor(region.density);
+            else if (mode === 'economy') fillColor = getEconomyColor(region.income);
+            else if (mode === 'population') fillColor = getPopulationColor(region.population);
+            else if (mode === 'commuter') fillColor = getCommuterColor(region.commuter);
+            else if (mode === 'age') fillColor = getAgeColor(region.medianAge);
+            layer.setStyle({ color: '#EFEBE7', weight: isHovered ? 2.5 : 1.2, dashArray: '', fillColor: fillColor, fillOpacity: isHovered ? 0.95 : 0.75 });
+        }
+    };
+
+    const initPOIs = (mapInstance) => {
+        const L = window.L;
+        mapLocations.forEach(loc => {
+            const singlePoiGroup = L.layerGroup();
+            if (loc.radii) {
+                loc.radii.sort((a, b) => b - a).forEach((radius, index) => {
+                    const isOuter = index === 0; 
+                    L.circle([loc.lat, loc.lon], { radius: radius, color: loc.color, weight: isOuter ? 2 : 2.5, dashArray: isOuter ? '4, 8' : '6, 6', fillColor: loc.color, fillOpacity: 0.1, interactive: false, pane: 'ringsPane', className: isOuter ? 'breathe-outer' : 'breathe-inner' }).addTo(singlePoiGroup);
+                });
+            }
+            const marker = L.circleMarker([loc.lat, loc.lon], { radius: 8, fillColor: loc.color, color: '#EFEBE7', weight: 2, opacity: 1, fillOpacity: 1, pane: 'markersPane' }).addTo(singlePoiGroup);
+            marker.bindTooltip(`<b>${loc.name}</b><br><span style="font-size:11px;color:#777;">${loc.desc}</span>`, { direction: 'top', offset: [0, -10], className: 'custom-tooltip' });
+            poiLayersRef.current[loc.id] = singlePoiGroup;
+            
+            // Immediate sync: Force POIs to render instantly on map load
+            if (activePOIs.includes(loc.id)) {
+                singlePoiGroup.addTo(poiGroupRef.current);
+            }
+        });
+    };
+
+    useEffect(() => {
+        if (!mapRef.current) return;
+        const map = mapRef.current;
+        Object.entries(regionsLayersRef.current).forEach(([id, layer]) => {
+            const isActive = activeRegions.includes(id);
+            if (isActive && !map.hasLayer(layer)) { layer.addTo(map); } 
+            else if (!isActive && map.hasLayer(layer)) { map.removeLayer(layer); }
+            if (isActive) {
+                applyLayerStyle(layer, id, false, viewMode);
+                layer.setPopupContent(getTooltipContent(targetRegions.find(r => r.id === id), viewMode));
+            }
+        });
+    }, [activeRegions, viewMode, regionFetchStatuses]);
+
+    useEffect(() => {
+        if (!poiGroupRef.current) return;
+        const group = poiGroupRef.current;
+        group.clearLayers();
+        activePOIs.forEach(id => {
+            if (poiLayersRef.current[id]) poiLayersRef.current[id].addTo(group);
+        });
+    }, [activePOIs]);
+
+    const flyToWithOffset = useCallback((bounds, isPoint = false) => {
+        if (!mapRef.current || !bounds || !bounds.isValid()) return;
+        const options = { paddingTopLeft: [40, 40], paddingBottomRight: [40, 40], duration: 1.5, easeLinearity: 0.25 };
+        if (isPoint) options.maxZoom = 12;
+        mapRef.current.flyToBounds(bounds, options);
+    }, []);
+
+    const frameActiveRegions = useCallback((mapInstance) => {
+        const L = window.L;
+        const activeLayers = activeRegions.map(id => regionsLayersRef.current[id]).filter(Boolean);
+        if (activeLayers.length > 0) {
+            const boundaryGroup = L.featureGroup(activeLayers);
+            flyToWithOffset(boundaryGroup.getBounds());
+        }
+    }, [activeRegions, flyToWithOffset]);
+
+    const handleRegionClick = (regionId) => {
+        const layer = regionsLayersRef.current[regionId];
+        if (layer && mapRef.current.hasLayer(layer) && layer.getBounds().isValid()) flyToWithOffset(layer.getBounds());
+    };
+
+    const handlePoiClick = (lat, lon) => {
+        const L = window.L;
+        if (!L) return;
+        flyToWithOffset(L.latLngBounds([lat, lon], [lat, lon]), true);
+    };
+
+    useEffect(() => {
+        const map = mapRef.current;
+        const L = window.L;
+        if (!map || !L) return;
+        measureStateRef.current.isMeasuring = isMeasuring;
+
+        const clearMeasure = () => {
+            const state = measureStateRef.current;
+            state.points = [];
+            if (state.line) map.removeLayer(state.line);
+            if (state.dynamicLine) map.removeLayer(state.dynamicLine);
+            if (state.tooltip && map.hasLayer(state.tooltip)) map.removeLayer(state.tooltip);
+            state.markers.forEach(m => map.removeLayer(m));
+            state.markers = []; state.line = null; state.dynamicLine = null;
+        };
+
+        const onMeasureClick = (e) => {
+            const state = measureStateRef.current;
+            if (state.points.length === 0 || state.points.length === 2) {
+                clearMeasure(); state.points.push(e.latlng);
+                const marker = L.circleMarker(e.latlng, { radius: 5, fillColor: '#1C6048', color: '#EFEBE7', weight: 2, fillOpacity: 1, pane: 'markersPane' }).addTo(map);
+                state.markers.push(marker);
+                state.dynamicLine = L.polyline([e.latlng, e.latlng], { color: '#1C6048', weight: 2.5, dashArray: '6, 8', pane: 'ringsPane' }).addTo(map);
+                state.tooltip = L.tooltip({ permanent: true, className: 'measure-tooltip', direction: 'center' }).setLatLng(e.latlng).setContent('0.00 km').addTo(map);
+            } else if (state.points.length === 1) {
+                state.points.push(e.latlng);
+                const marker = L.circleMarker(e.latlng, { radius: 5, fillColor: '#1C6048', color: '#EFEBE7', weight: 2, fillOpacity: 1, pane: 'markersPane' }).addTo(map);
+                state.markers.push(marker);
+                if (state.dynamicLine) map.removeLayer(state.dynamicLine);
+                state.line = L.polyline(state.points, { color: '#1C6048', weight: 2.5, dashArray: '6, 8', pane: 'ringsPane' }).addTo(map);
+                const distance = (map.distance(state.points[0], state.points[1]) / 1000).toFixed(2);
+                state.tooltip.setLatLng([(state.points[0].lat + state.points[1].lat) / 2, (state.points[0].lng + state.points[1].lng) / 2]).setContent(`${distance} km`);
+            }
+        };
+
+        const onMeasureMove = (e) => {
+            const state = measureStateRef.current;
+            if (state.points.length === 1) {
+                state.dynamicLine.setLatLngs([state.points[0], e.latlng]);
+                const distance = (map.distance(state.points[0], e.latlng) / 1000).toFixed(2);
+                state.tooltip.setLatLng([(state.points[0].lat + e.latlng.lat) / 2, (state.points[0].lng + e.latlng.lng) / 2]).setContent(`${distance} km`);
+            }
+        };
+
+        if (isMeasuring) {
+            map.getContainer().style.cursor = 'crosshair';
+            map.getContainer().classList.add('map-measuring');
+            map.on('click', onMeasureClick); map.on('mousemove', onMeasureMove);
+        } else {
+            map.getContainer().style.cursor = '';
+            map.getContainer().classList.remove('map-measuring');
+            map.off('click', onMeasureClick); map.off('mousemove', onMeasureMove);
+            clearMeasure();
+        }
+        return () => { if (map) { map.off('click', onMeasureClick); map.off('mousemove', onMeasureMove); } };
+    }, [isMeasuring]);
+
+    const pyramidData = useMemo(() => {
+        const male = [0, 0, 0, 0, 0, 0, 0, 0];
+        const female = [0, 0, 0, 0, 0, 0, 0, 0];
+        let activePop = 0, totalPop = 0;
+        targetRegions.forEach(r => {
+            totalPop += r.population;
+            if (activeRegions.includes(r.id) && r.maleDistribution) {
+                activePop += r.population;
+                for (let i = 0; i < 8; i++) { male[i] += r.maleDistribution[i]; female[i] += r.femaleDistribution[i]; }
+            }
+        });
+        const maxCohort = Math.max(...male, ...female, 1);
+        const popShare = totalPop > 0 ? ((activePop / totalPop) * 100).toFixed(1) : 0;
+        return { male, female, activePop, totalPop, maxCohort, popShare };
+    }, [activeRegions]);
+
+    const toggleRegion = (id) => setActiveRegions(prev => prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id]);
+    const toggleGroup = (groupName) => {
+        const groupRegionIds = regionGroups[groupName].map(r => r.id);
+        const allActive = groupRegionIds.every(id => activeRegions.includes(id));
+        if (allActive) setActiveRegions(prev => prev.filter(id => !groupRegionIds.includes(id)));
+        else setActiveRegions(prev => [...new Set([...prev, ...groupRegionIds])]);
+    };
+    const toggleAllPoi = () => setActivePOIs(prev => prev.length === mapLocations.length ? [] : mapLocations.map(l => l.id));
+
+    return (
+        <div className="w-full h-[600px] rounded-2xl overflow-hidden relative z-10 font-sans border border-[#D8D8D8] shadow-sm">
+            <style>{`
+                .leaflet-tooltip.custom-tooltip, .leaflet-popup-content-wrapper {
+                    background-color: rgba(239, 235, 231, 0.95); backdrop-filter: blur(8px);
+                    border-radius: 8px; box-shadow: 0 10px 30px rgba(30, 47, 49, 0.15);
+                    border: 1px solid rgba(155, 139, 112, 0.2); color: #1E2f31;
+                    font-weight: 600; font-family: 'Plus Jakarta Sans', sans-serif;
+                }
+                .leaflet-tooltip.custom-tooltip { padding: 10px 14px; opacity: 1 !important; }
+                .leaflet-popup-content { margin: 10px 14px; line-height: 1.4; }
+                /* Custom Scrollbar to preserve panel rounded corners */
+                .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; margin: 16px 0; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(155, 139, 112, 0.5); border-radius: 8px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(155, 139, 112, 0.8); }
+                
+                .switch { position: relative; display: inline-block; flex-shrink: 0; }
+                .switch.group { width: 32px; height: 18px; margin-left: 8px; }
+                .switch.item { width: 24px; height: 14px; }
+                .switch input { opacity: 0; width: 0; height: 0; }
+                .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #D8D8D8; transition: .4s; border-radius: 34px; }
+                .slider:before { position: absolute; content: ""; background-color: #EFEBE7; transition: .4s; border-radius: 50%; }
+                .switch.group .slider:before { height: 12px; width: 12px; left: 3px; bottom: 3px; }
+                .switch.item .slider:before { height: 10px; width: 10px; left: 2px; bottom: 2px; }
+                .switch.group input:checked + .slider { background-color: #9B8B70; }
+                .switch.item input:checked + .slider { background-color: #1E2f31; }
+                .switch.group input:checked + .slider:before { transform: translateX(14px); }
+                .switch.item input:checked + .slider:before { transform: translateX(10px); }
+                @keyframes breathePulse { 0% { opacity: 0.2; transform: scale(0.95); } 100% { opacity: 0.6; transform: scale(1.05); } }
+                .breathe-outer { animation: breathePulse 3s infinite alternate ease-in-out; transform-origin: center; }
+                
+                /* Align Leaflet controls with Tailwind 16px grid */
+                .leaflet-left .leaflet-control { margin-left: 16px !important; }
+                .leaflet-bottom .leaflet-control { margin-bottom: 16px !important; }
+            `}</style>
+
+            <div id="demographics-map" className="w-full h-full z-[1]"></div>
+
+            <div className={`absolute bottom-4 left-4 z-[1010] bg-white/70 backdrop-blur-sm border border-[#D8D8D8]/50 py-2 px-4 rounded-lg shadow-md text-xs font-medium text-[#4C4A4B] transition-opacity duration-500 pointer-events-none flex items-center ${loadingStatus.active ? 'opacity-100' : 'opacity-0'}`}>
+                <span className={`inline-block w-2 h-2 rounded-full mr-2 ${loadingStatus.active ? 'bg-[#1C6048] animate-pulse' : 'bg-[#1C6048]'}`}></span>
+                <span>{loadingStatus.text}</span>
+            </div>
+
+            <div className={`absolute top-4 left-4 z-[1000] bg-white/95 backdrop-blur-md border border-[#D8D8D8] rounded-xl shadow-lg w-[320px] max-h-[calc(100%-110px)] overflow-y-auto custom-scrollbar flex flex-col pointer-events-auto transition-all ${isPanelOpen ? 'translate-x-0' : '-translate-x-[110%]'}`}>
+                <div className="p-4 border-b border-[#D8D8D8] flex justify-between items-center sticky top-0 bg-white/95 z-10">
+                    <div className="text-sm font-extrabold text-[#1E2f31] uppercase tracking-wider flex items-center gap-2">
+                        <Map size={16} className="text-[#1C6048]" /> <span>Geo-Demographics</span>
+                    </div>
+                    <button onClick={() => setIsPanelOpen(false)} className="text-[#9B8B70] hover:text-[#1E2F31]"><X size={16}/></button>
+                </div>
+                
+                <div className="p-4 flex flex-col gap-5">
+                    <select value={viewMode} onChange={(e) => setViewMode(e.target.value)} className="w-full p-2 bg-[#F9F8F6] border border-[#D8D8D8] rounded-lg font-bold text-xs text-[#1E2f31] outline-none cursor-pointer">
+                        <option value="admin">Administrative Regions</option>
+                        <option value="population">Total Population</option>
+                        <option value="density">Population Density</option>
+                        <option value="economy">Economic Profile (GDRP)</option>
+                        <option value="commuter">Commuter Flow (% to Core)</option>
+                        <option value="age">Age Demographics (Median)</option>
+                    </select>
+
+                    <div className="flex flex-col gap-1">
+                        <div className="flex justify-between items-center text-[11px] font-extrabold text-[#1C6048] uppercase tracking-wider pb-1 border-b border-dashed border-[#d8d8d8] cursor-pointer" onClick={() => setRegionsSectionExpanded(!regionsSectionExpanded)}>
+                            <span>Regions</span>
+                            <ChevronDown size={14} className={`transition-transform duration-300 ${!regionsSectionExpanded ? '-rotate-90' : ''}`} />
+                        </div>
+                        {regionsSectionExpanded && Object.entries(regionGroups).map(([groupName, regions]) => (
+                            <div key={groupName} className="mt-1">
+                                <div className="flex justify-between items-center text-[10px] font-bold text-[#9B8B70] uppercase py-1 bg-[#F9F8F6] px-2 rounded cursor-pointer mb-1" onClick={() => setExpandedGroups(p => ({ ...p, [groupName]: !p[groupName] }))}>
+                                    <div className="flex items-center gap-1.5">
+                                        <ChevronDown size={14} className={`transition-transform duration-300 ${!expandedGroups[groupName] ? '-rotate-90' : ''}`} />
+                                        <span>{groupName}</span>
+                                    </div>
+                                    <label className="switch group" onClick={e => e.stopPropagation()}><input type="checkbox" checked={regions.every(r => activeRegions.includes(r.id))} onChange={() => toggleGroup(groupName)} /><span className="slider"></span></label>
+                                </div>
+                                {expandedGroups[groupName] && regions.map(region => (
+                                    <div 
+                                        key={region.id} 
+                                        className="flex justify-between items-center py-1 pl-4 pr-2 text-[10px] font-medium text-[#4C4A4B] hover:bg-[#EFEBE7] rounded transition-colors"
+                                        onMouseEnter={() => {
+                                            const layer = regionsLayersRef.current[region.id];
+                                            if (layer && mapRef.current?.hasLayer(layer)) {
+                                                applyLayerStyle(layer, region.id, true, viewMode);
+                                                if (typeof layer.bringToFront === 'function') layer.bringToFront();
+                                            }
+                                        }}
+                                        onMouseLeave={() => {
+                                            const layer = regionsLayersRef.current[region.id];
+                                            if (layer && mapRef.current?.hasLayer(layer)) {
+                                                applyLayerStyle(layer, region.id, false, viewMode);
+                                            }
+                                        }}
+                                    >
+                                        <span className="cursor-pointer hover:text-[#1C6048]" onClick={() => handleRegionClick(region.id)}>{region.name}</span>
+                                        <label className="switch item"><input type="checkbox" checked={activeRegions.includes(region.id)} onChange={() => toggleRegion(region.id)} disabled={regionFetchStatuses[region.id] !== 'success'} /><span className="slider"></span></label>
+                                    </div>
+                                ))}
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                        <div className="flex justify-between items-center text-[11px] font-extrabold text-[#1C6048] uppercase tracking-wider pb-1 border-b border-dashed border-[#d8d8d8] cursor-pointer" onClick={() => setPoiSectionExpanded(!poiSectionExpanded)}>
+                            <span>Locations</span>
+                            <label className="switch group ml-auto mr-2" onClick={e => e.stopPropagation()}><input type="checkbox" checked={activePOIs.length === mapLocations.length} onChange={toggleAllPoi} /><span className="slider"></span></label>
+                            <ChevronDown size={14} className={`transition-transform duration-300 ${!poiSectionExpanded ? '-rotate-90' : ''}`} />
+                        </div>
+                        {poiSectionExpanded && mapLocations.map(loc => (
+                            <div key={loc.id} className="flex justify-between items-center py-1.5 px-2 text-[10px] font-medium hover:bg-[#EFEBE7] rounded cursor-pointer" onClick={() => handlePoiClick(loc.lat, loc.lon)}>
+                                <div><p className="font-bold text-[#1E2F31]">{loc.name}</p><p className="text-[9px] text-[#9B8B70]">{loc.desc}</p></div>
+                                <label className="switch item" onClick={e => e.stopPropagation()}><input type="checkbox" checked={activePOIs.includes(loc.id)} onChange={() => setActivePOIs(prev => prev.includes(loc.id) ? prev.filter(i => i !== loc.id) : [...prev, loc.id])} /><span className="slider"></span></label>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="bg-[#F9F8F6] p-3 rounded-xl border border-[#D8D8D8]">
+                        <div className="flex justify-between items-center cursor-pointer mb-2" onClick={() => setPyramidExpanded(!pyramidExpanded)}>
+                            <div><span className="text-[11px] font-extrabold text-[#1C6048] uppercase tracking-wider">Demographics</span><p className="text-[9px] font-medium text-[#4C4A4B]">{pyramidData.activePop.toLocaleString()} Captured</p></div>
+                            <ChevronDown size={14} className={`text-[#1C6048] transition-transform ${!pyramidExpanded ? '-rotate-90' : ''}`} />
+                        </div>
+                        <div className={`mt-2 pt-2 border-t border-[#D8D8D8] flex flex-col gap-1 transition-all duration-400 origin-top-left ${!pyramidExpanded ? 'scale-y-[0.3] scale-x-[0.3] -mb-[180px] opacity-60 grayscale-[0.5] pointer-events-none' : ''}`}>
+                            {ageCohorts.map((cohort, index) => (
+                                <div key={cohort} className="flex items-center h-3">
+                                    <div className="flex-1 h-full bg-[#EFEBE7] rounded-sm flex justify-end"><div className="h-full rounded-sm bg-[#1C6048] transition-all duration-300" style={{ width: `${(pyramidData.male[index] / pyramidData.maxCohort) * 100}%` }}></div></div>
+                                    <div className="w-10 text-center text-[8px] font-bold text-[#4C4A4B]">{cohort}</div>
+                                    <div className="flex-1 h-full bg-[#EFEBE7] rounded-sm flex justify-start"><div className="h-full rounded-sm bg-[#A95C3E] transition-all duration-300" style={{ width: `${(pyramidData.female[index] / pyramidData.maxCohort) * 100}%` }}></div></div>
+                                </div>
+                            ))}
+                            
+                            {/* Axis */}
+                            <div className="flex text-[9px] text-[#9B8B70] mt-1 mb-2 h-3">
+                                <div className="flex-1 relative border-t border-[#9B8B70]/40 pt-1">
+                                    <div className="absolute left-0 -top-px h-1 border-l border-[#9B8B70]/40"></div>
+                                    <div className="absolute left-1/2 -top-px h-1 border-l border-[#9B8B70]/40"></div>
+                                    <div className="absolute right-0 -top-px h-1 border-r border-[#9B8B70]/40"></div>
+                                    <span className="absolute left-0">0</span>
+                                    <span className="absolute left-1/2 -translate-x-1/2">{formatAxisLabel(pyramidData.maxCohort / 2)}</span>
+                                    <span className="absolute right-0">{formatAxisLabel(pyramidData.maxCohort)}</span>
+                                </div>
+                                <div className="w-10"></div>
+                                <div className="flex-1 relative border-t border-[#9B8B70]/40 pt-1">
+                                    <div className="absolute left-0 -top-px h-1 border-l border-[#9B8B70]/40"></div>
+                                    <div className="absolute left-1/2 -top-px h-1 border-l border-[#9B8B70]/40"></div>
+                                    <div className="absolute right-0 -top-px h-1 border-r border-[#9B8B70]/40"></div>
+                                    <span className="absolute left-0">0</span>
+                                    <span className="absolute left-1/2 -translate-x-1/2">{formatAxisLabel(pyramidData.maxCohort / 2)}</span>
+                                    <span className="absolute right-0">{formatAxisLabel(pyramidData.maxCohort)}</span>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-between text-[9px] font-bold text-[#9B8B70] border-t border-dashed border-[#D8D8D8] pt-2">
+                                <span className="text-[#1C6048]">♂ Men</span>
+                                <span>Cohort Age</span>
+                                <span className="text-[#A95C3E]">♀ Women</span>
+                            </div>
+
+                            {/* Active Pop Progress Bar */}
+                            <div className="mt-2 border-t border-dashed border-[#D8D8D8] pt-2 flex flex-col gap-1">
+                                <div className="flex justify-between text-[10px] font-bold text-[#4C4A4B]">
+                                    <span>ACTIVE POPULATION SHARE</span>
+                                    <span className="text-[#9B8B70]">{pyramidData.popShare}%</span>
+                                </div>
+                                <div className="w-full h-1.5 bg-[#9B8B70]/10 rounded-full overflow-hidden relative">
+                                    <div className="h-full bg-[#9B8B70] rounded-full transition-all duration-400" style={{ width: `${pyramidData.popShare}%` }}></div>
+                                </div>
+                                <div className="text-[9px] text-[#9B8B70] flex justify-between font-medium">
+                                    <span>{(pyramidData.activePop / 1000000).toFixed(2)}M / {(pyramidData.totalPop / 1000000).toFixed(1)}M</span>
+                                    <span>of Greater Jakarta</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {!isPanelOpen && (
+                <div onClick={() => setIsPanelOpen(true)} className="absolute top-4 left-4 z-[1000] bg-white/90 backdrop-blur-md p-2.5 rounded-xl shadow-md border border-[#D8D8D8] cursor-pointer hover:bg-white text-[#1E2F31] font-bold text-xs uppercase flex items-center gap-2"><Map size={16} className="text-[#1C6048]"/> Open Map Data</div>
+            )}
+
+            <div onClick={() => setIsMeasuring(!isMeasuring)} className={`absolute bottom-4 left-[64px] z-[1000] w-[34px] h-[34px] bg-white rounded flex justify-center items-center cursor-pointer shadow-[0_1px_5px_rgba(0,0,0,0.65)] border-2 border-black/20 bg-clip-padding transition-all hover:bg-[#f4f4f4] ${isMeasuring ? 'text-[#1C6048] bg-[#E8EFEA]' : 'text-[#4C4A4B]'}`} title="Measure Distance"><Ruler size={16} strokeWidth={2.5} /></div>
+        </div>
+    );
+});
+// === END INTERACTIVE MAP ===
+
 const StudyView = memo(({ isPresenting, info }) => {
   const [activeMiniTab, setActiveMiniTab] = useState('macro'); // Default to our new macro tab
 
@@ -1672,6 +2240,25 @@ const StudyView = memo(({ isPresenting, info }) => {
                          By filtering the regional demographic to strictly isolate **SES A & B (18%)** and capturing those with **Private Commercial Insurance (40%)**, we establish a core addressable market of **230.4k high-margin premium lives**, heavily de-risking our revenue-per-bed targets.
                      </p>
                  </div>
+             </BentoBox>
+
+             {/* Concept 4: The Interactive Geographic Spillover (The Leaflet Map) */}
+             <BentoBox colSpan="md:col-span-12" className="bg-white border-[#D8D8D8]">
+                 <div className="flex items-center gap-3 mb-6">
+                   <Map size={24} className="text-[#1C6048]" />
+                   <div>
+                       <h2 className="text-lg font-black text-[#1E2F31] tracking-tight">Interactive Catchment Boundary</h2>
+                       <p className="text-[10px] text-[#4C4A4B] font-medium mt-0.5">Visualizing the West Jakarta structural spillover into our localized Tangerang monopoly.</p>
+                   </div>
+                 </div>
+                 
+                 <div className="w-full">
+                     <InteractiveDemographicMap />
+                 </div>
+                 
+                 <p className="text-[11px] text-[#4C4A4B] leading-relaxed font-medium mt-6 bg-[#EFEBE7] p-4 rounded-xl border border-[#D8D8D8]">
+                     <strong className="text-[#1E2F31]">Strategic Note:</strong> Notice how the primary catchment area directly borders the highly affluent West Jakarta corridor. Because our model strictly underwrites using only Tangerang's population, any spillover from the 2.6M West Jakarta residents (who face a much faster commute to Vasanta than to South Jakarta) represents pure, un-modeled upside to our base-case returns.
+                 </p>
              </BentoBox>
 
              {/* Key Regional Infrastructure Context */}
