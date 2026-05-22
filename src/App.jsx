@@ -1823,7 +1823,16 @@ const InteractiveDemographicMap = memo(() => {
 
     const flyToWithOffset = useCallback((bounds, isPoint = false) => {
         if (!mapRef.current || !bounds || !bounds.isValid()) return;
-        const options = { paddingTopLeft: [40, 40], paddingBottomRight: [40, 40], duration: 1.5, easeLinearity: 0.25 };
+        
+        // Add 360px left padding on desktop to clear the panel, standard 40px on mobile
+        const leftPadding = window.innerWidth > 640 ? 360 : 40; 
+        
+        const options = { 
+            paddingTopLeft: [leftPadding, 40], 
+            paddingBottomRight: [40, 40], 
+            duration: 1.5, 
+            easeLinearity: 0.25 
+        };
         if (isPoint) options.maxZoom = 12;
         mapRef.current.flyToBounds(bounds, options);
     }, []);
